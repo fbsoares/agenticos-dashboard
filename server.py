@@ -41,6 +41,50 @@ def _write(path: Path, data: list) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _list(filename: str, filter_fn=None) -> list:
+    items = _read(DATA / filename)
+    if filter_fn:
+        return [i for i in items if filter_fn(i)]
+    return items
+
+
+def _add(filename: str, item: dict) -> dict:
+    with _lock:
+        items = _read(DATA / filename)
+        items.append(item)
+        _write(DATA / filename, items)
+    return item
+
+
+def _add_first(filename: str, item: dict) -> dict:
+    with _lock:
+        items = _read(DATA / filename)
+        items.insert(0, item)
+        _write(DATA / filename, items)
+    return item
+
+
+def _patch(filename: str, item_id: str, mutate_fn):
+    with _lock:
+        items = _read(DATA / filename)
+        for item in items:
+            if item["id"] == item_id:
+                mutate_fn(item)
+                _write(DATA / filename, items)
+                return item
+    return None
+
+
+def _delete(filename: str, item_id: str) -> bool:
+    with _lock:
+        items = _read(DATA / filename)
+        new_items = [i for i in items if i["id"] != item_id]
+        if len(new_items) == len(items):
+            return False
+        _write(DATA / filename, new_items)
+        return True
+
+
 @app.after_request
 def _cors(resp):
     resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -84,7 +128,7 @@ def get_checklist():
             type: string
             format: date-time
     """
-    return jsonify(_read(DATA / "checklist.json"))
+    return jsonify(_list("checklist.json"))
 
 
 @app.route("/api/checklist", methods=["POST"])
@@ -121,11 +165,7 @@ def add_checklist():
         "checked": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    with _lock:
-        items = _read(DATA / "checklist.json")
-        items.append(item)
-        _write(DATA / "checklist.json", items)
-    return jsonify(item), 201
+    return jsonify(_add("checklist.json", item)), 201
 
 
 @app.route("/api/checklist/<item_id>", methods=["PATCH"])
@@ -154,14 +194,12 @@ def patch_checklist(item_id):
         description: Not found
     """
     body = request.get_json(force=True) or {}
-    with _lock:
-        items = _read(DATA / "checklist.json")
-        for item in items:
-            if item["id"] == item_id:
-                item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
-                _write(DATA / "checklist.json", items)
-                return jsonify(item)
-    return jsonify({"error": "not found"}), 404
+    def mutate(item):
+        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
+    item = _patch("checklist.json", item_id, mutate)
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
 
 
 @app.route("/api/checklist/<item_id>", methods=["DELETE"])
@@ -180,12 +218,8 @@ def delete_checklist(item_id):
       404:
         description: Not found
     """
-    with _lock:
-        items = _read(DATA / "checklist.json")
-        new_items = [i for i in items if i["id"] != item_id]
-        if len(new_items) == len(items):
-            return jsonify({"error": "not found"}), 404
-        _write(DATA / "checklist.json", new_items)
+    if not _delete("checklist.json", item_id):
+        return jsonify({"error": "not found"}), 404
     return "", 204
 
 
@@ -222,7 +256,7 @@ def get_announcements():
             type: string
             format: date-time
     """
-    return jsonify([i for i in _read(DATA / "announcements.json") if not i.get("dismissed")])
+    return jsonify(_list("announcements.json", lambda i: not i.get("dismissed")))
 
 
 @app.route("/api/announcements", methods=["POST"])
@@ -263,11 +297,7 @@ def add_announcement():
         "dismissed": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    with _lock:
-        items = _read(DATA / "announcements.json")
-        items.append(item)
-        _write(DATA / "announcements.json", items)
-    return jsonify(item), 201
+    return jsonify(_add("announcements.json", item)), 201
 
 
 @app.route("/api/announcements/<item_id>/dismiss", methods=["PATCH"])
@@ -288,14 +318,10 @@ def dismiss_announcement(item_id):
       404:
         description: Not found
     """
-    with _lock:
-        items = _read(DATA / "announcements.json")
-        for item in items:
-            if item["id"] == item_id:
-                item["dismissed"] = True
-                _write(DATA / "announcements.json", items)
-                return jsonify(item)
-    return jsonify({"error": "not found"}), 404
+    item = _patch("announcements.json", item_id, lambda i: i.__setitem__("dismissed", True))
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
 
 
 # ── News ─────────────────────────────────────────────────────────────────────
@@ -335,7 +361,7 @@ def get_news():
           read:
             type: boolean
     """
-    return jsonify(_read(DATA / "news.json"))
+    return jsonify(_list("news.json"))
 
 
 @app.route("/api/news", methods=["POST"])
@@ -385,11 +411,7 @@ def add_news():
         "date": str(body.get("date", datetime.now(timezone.utc).date().isoformat())),
         "read": False,
     }
-    with _lock:
-        items = _read(DATA / "news.json")
-        items.insert(0, item)
-        _write(DATA / "news.json", items)
-    return jsonify(item), 201
+    return jsonify(_add_first("news.json", item)), 201
 
 
 @app.route("/api/news/<item_id>", methods=["DELETE"])
@@ -408,12 +430,8 @@ def delete_news(item_id):
       404:
         description: Not found
     """
-    with _lock:
-        items = _read(DATA / "news.json")
-        new_items = [i for i in items if i["id"] != item_id]
-        if len(new_items) == len(items):
-            return jsonify({"error": "not found"}), 404
-        _write(DATA / "news.json", new_items)
+    if not _delete("news.json", item_id):
+        return jsonify({"error": "not found"}), 404
     return "", 204
 
 
@@ -435,14 +453,10 @@ def mark_news_read(item_id):
       404:
         description: Not found
     """
-    with _lock:
-        items = _read(DATA / "news.json")
-        for item in items:
-            if item["id"] == item_id:
-                item["read"] = True
-                _write(DATA / "news.json", items)
-                return jsonify(item)
-    return jsonify({"error": "not found"}), 404
+    item = _patch("news.json", item_id, lambda i: i.__setitem__("read", True))
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
 
 
 # ── Music ─────────────────────────────────────────────────────────────────────
@@ -479,7 +493,7 @@ def get_music():
             type: string
             example: 🎵
     """
-    return jsonify(_read(DATA / "music.json"))
+    return jsonify(_list("music.json"))
 
 
 @app.route("/api/music", methods=["POST"])
@@ -527,11 +541,7 @@ def add_music():
         "artist": str(body.get("artist", "")),
         "icon": str(body.get("icon", "🎵")),
     }
-    with _lock:
-        items = _read(DATA / "music.json")
-        items.append(item)
-        _write(DATA / "music.json", items)
-    return jsonify(item), 201
+    return jsonify(_add("music.json", item)), 201
 
 
 @app.route("/api/music/<item_id>", methods=["DELETE"])
@@ -550,12 +560,8 @@ def delete_music(item_id):
       404:
         description: Not found
     """
-    with _lock:
-        items = _read(DATA / "music.json")
-        new_items = [i for i in items if i["id"] != item_id]
-        if len(new_items) == len(items):
-            return jsonify({"error": "not found"}), 404
-        _write(DATA / "music.json", new_items)
+    if not _delete("music.json", item_id):
+        return jsonify({"error": "not found"}), 404
     return "", 204
 
 
