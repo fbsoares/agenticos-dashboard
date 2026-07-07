@@ -1,3 +1,5 @@
 dashboard-config.json
 .venv/
 data/*.json
+__pycache__/
+claude-skills/
