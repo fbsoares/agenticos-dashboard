@@ -27,6 +27,7 @@ Swagger(app, template={
         {"name": "News"},
         {"name": "Music"},
         {"name": "Personal"},
+        {"name": "Sessions"},
     ],
 })
 
@@ -910,6 +911,131 @@ def delete_personal_music(item_id):
         description: Not found
     """
     if not _delete("personal-music.json", item_id):
+        return jsonify({"error": "not found"}), 404
+    return "", 204
+
+
+# ── Session Registry (manual sessions: Edgar, other) ─────────────────────────
+
+@app.route("/api/sessions", methods=["GET"])
+def get_sessions():
+    """List manually registered sessions.
+    ---
+    tags: [Sessions]
+    parameters:
+      - in: query
+        name: active
+        type: string
+        required: false
+    responses:
+      200:
+        description: List of registered sessions
+    """
+    sessions = _read(DATA / "sessions-registry.json")
+    if request.args.get("active") == "true":
+        sessions = [s for s in sessions if s.get("status") != "ended"]
+    return jsonify(sessions)
+
+
+@app.route("/api/sessions", methods=["POST"])
+def add_session():
+    """Register a manual session.
+    ---
+    tags: [Sessions]
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [provider, name]
+          properties:
+            provider:
+              type: string
+              example: edgar
+            name:
+              type: string
+            notes:
+              type: string
+    responses:
+      201:
+        description: Registered session
+      400:
+        description: provider and name required
+    """
+    body = request.get_json(force=True) or {}
+    provider = str(body.get("provider", "")).strip()
+    name = str(body.get("name", "")).strip()
+    if not provider or not name:
+        return jsonify({"error": "provider and name required"}), 400
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "provider": provider,
+        "name": name,
+        "notes": str(body.get("notes", "")),
+        "status": "active",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "ended_at": None,
+    }
+    return jsonify(_add("sessions-registry.json", item)), 201
+
+
+@app.route("/api/sessions/<item_id>", methods=["PATCH"])
+def patch_session(item_id):
+    """Update a registered session (status/notes).
+    ---
+    tags: [Sessions]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            status:
+              type: string
+            notes:
+              type: string
+    responses:
+      200:
+        description: Updated session
+      404:
+        description: Not found
+    """
+    body = request.get_json(force=True) or {}
+    def mutate(item):
+        if "status" in body:
+            item["status"] = body["status"]
+            if body["status"] == "ended":
+                item["ended_at"] = datetime.now(timezone.utc).isoformat()
+        if "notes" in body:
+            item["notes"] = body["notes"]
+    item = _patch("sessions-registry.json", item_id, mutate)
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
+
+
+@app.route("/api/sessions/<item_id>", methods=["DELETE"])
+def delete_session(item_id):
+    """Remove a registered session entry.
+    ---
+    tags: [Sessions]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      204:
+        description: Deleted
+      404:
+        description: Not found
+    """
+    if not _delete("sessions-registry.json", item_id):
         return jsonify({"error": "not found"}), 404
     return "", 204
 
