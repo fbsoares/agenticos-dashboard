@@ -117,7 +117,7 @@ function escAttr(s) {
 
 // ── Checklist ────────────────────────────────────────────────────────────
 function pollChecklist() {
-  fetch(`${API_BASE}/api/checklist?t=` + Date.now())
+  fetch(`/api${API_BASE}/checklist?t=` + Date.now())
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
     .then(items => {
       const el = document.getElementById('checklist-items');
@@ -135,7 +135,7 @@ function pollChecklist() {
 
 function toggleChecklist(id, el) {
   const done = el.classList.contains('done');
-  fetch(`${API_BASE}/api/checklist/${id}`, {
+  fetch(`/api${API_BASE}/checklist/${id}`, {
     method: 'PATCH',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({checked: !done}),
@@ -157,7 +157,7 @@ function copyChecklistItem(btn, text) {
 }
 
 function deleteChecklistItem(id, btn) {
-  fetch(`${API_BASE}/api/checklist/${id}`, { method: 'DELETE' })
+  fetch(`/api${API_BASE}/checklist/${id}`, { method: 'DELETE' })
     .then(r => { if (!r.ok && r.status !== 404) throw new Error(r.statusText); })
     .then(() => { btn.closest('.checklist-item').remove(); })
     .catch(() => {});
@@ -166,7 +166,7 @@ function deleteChecklistItem(id, btn) {
 function addChecklistItem(input) {
   const text = input.value.trim();
   if (!text) return;
-  fetch(`${API_BASE}/api/checklist`, {
+  fetch(`/api${API_BASE}/checklist`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({text}),
@@ -178,7 +178,7 @@ function addChecklistItem(input) {
 
 // ── Announcements ─────────────────────────────────────────────────────────
 function pollAnnouncements() {
-  fetch(`${API_BASE}/api/announcements?t=` + Date.now())
+  fetch(`/api${API_BASE}/announcements?t=` + Date.now())
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
     .then(items => {
       const el = document.getElementById('announcements-items');
@@ -200,7 +200,7 @@ function pollAnnouncements() {
 }
 
 function dismissAnnouncement(id, btn) {
-  fetch(`${API_BASE}/api/announcements/${id}/dismiss`, { method: 'PATCH' })
+  fetch(`/api${API_BASE}/announcements/${id}/dismiss`, { method: 'PATCH' })
     .then(r => { if (!r.ok) throw new Error(r.statusText); })
     .then(() => { btn.closest('.announcement-item').remove(); })
     .catch(() => {});
@@ -208,7 +208,7 @@ function dismissAnnouncement(id, btn) {
 
 // ── News ──────────────────────────────────────────────────────────────────
 function pollNews() {
-  fetch(`${API_BASE}/api/news?t=` + Date.now())
+  fetch(`/api${API_BASE}/news?t=` + Date.now())
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
     .then(items => {
       const el = document.getElementById('news-items');
@@ -231,13 +231,13 @@ function pollNews() {
 function openNews(el) {
   const url = el.dataset.url;
   if (!url || !/^https?:\/\//i.test(url)) return;
-  fetch(`${API_BASE}/api/news/${el.dataset.id}/read`, { method: 'PATCH' }).catch(() => {});
+  fetch(`/api${API_BASE}/news/${el.dataset.id}/read`, { method: 'PATCH' }).catch(() => {});
   window.open(url, '_blank', 'noopener');
   el.classList.add('read');
 }
 
 function deleteNews(id, btn) {
-  fetch(`${API_BASE}/api/news/${id}`, { method: 'DELETE' })
+  fetch(`/api${API_BASE}/news/${id}`, { method: 'DELETE' })
     .then(r => { if (!r.ok && r.status !== 404) throw new Error(r.statusText); })
     .then(() => { btn.closest('.news-item').remove(); })
     .catch(() => {});
@@ -250,7 +250,7 @@ function addNewsItem() {
   const title = (titleEl?.value || '').trim();
   if (!url || !/^https?:\/\//i.test(url)) { urlEl?.focus(); return; }
   const body = { url, title: title || new URL(url).hostname };
-  fetch(`${API_BASE}/api/news`, {
+  fetch(`/api${API_BASE}/news`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -266,7 +266,7 @@ function addNewsItem() {
 
 // ── Music ─────────────────────────────────────────────────────────────────
 function pollMusic() {
-  fetch(`${API_BASE}/api/music?t=` + Date.now())
+  fetch(`/api${API_BASE}/music?t=` + Date.now())
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
     .then(items => {
       const el = document.getElementById('music-items');
