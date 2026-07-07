@@ -26,6 +26,7 @@ Swagger(app, template={
         {"name": "Announcements"},
         {"name": "News"},
         {"name": "Music"},
+        {"name": "Personal"},
     ],
 })
 
@@ -561,6 +562,354 @@ def delete_music(item_id):
         description: Not found
     """
     if not _delete("music.json", item_id):
+        return jsonify({"error": "not found"}), 404
+    return "", 204
+
+
+# ── Personal Checklist ───────────────────────────────────────────────────────
+
+@app.route("/api/personal/checklist", methods=["GET"])
+def get_personal_checklist():
+    """Get all personal checklist items.
+    ---
+    tags: [Personal]
+    responses:
+      200:
+        description: List of checklist items
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/ChecklistItem'
+    """
+    return jsonify(_list("personal-checklist.json"))
+
+
+@app.route("/api/personal/checklist", methods=["POST"])
+def add_personal_checklist():
+    """Add a personal checklist item.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [text]
+          properties:
+            text:
+              type: string
+    responses:
+      201:
+        description: Created item
+      400:
+        description: text required
+    """
+    body = request.get_json(force=True) or {}
+    text = str(body.get("text", "")).strip()
+    if not text:
+        return jsonify({"error": "text required"}), 400
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "text": text,
+        "checked": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return jsonify(_add("personal-checklist.json", item)), 201
+
+
+@app.route("/api/personal/checklist/<item_id>", methods=["PATCH"])
+def patch_personal_checklist(item_id):
+    """Toggle or set checked state of a personal checklist item.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Updated item
+      404:
+        description: Not found
+    """
+    body = request.get_json(force=True) or {}
+    def mutate(item):
+        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
+    item = _patch("personal-checklist.json", item_id, mutate)
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
+
+
+@app.route("/api/personal/checklist/<item_id>", methods=["DELETE"])
+def delete_personal_checklist(item_id):
+    """Delete a personal checklist item.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      204:
+        description: Deleted
+      404:
+        description: Not found
+    """
+    if not _delete("personal-checklist.json", item_id):
+        return jsonify({"error": "not found"}), 404
+    return "", 204
+
+
+# ── Personal Announcements ───────────────────────────────────────────────────
+
+@app.route("/api/personal/announcements", methods=["GET"])
+def get_personal_announcements():
+    """Get all non-dismissed personal announcements.
+    ---
+    tags: [Personal]
+    responses:
+      200:
+        description: List of active announcements
+    """
+    return jsonify(_list("personal-announcements.json", lambda i: not i.get("dismissed")))
+
+
+@app.route("/api/personal/announcements", methods=["POST"])
+def add_personal_announcement():
+    """Add a personal announcement.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [text]
+          properties:
+            text:
+              type: string
+            source:
+              type: string
+    responses:
+      201:
+        description: Created announcement
+      400:
+        description: text required
+    """
+    body = request.get_json(force=True) or {}
+    text = str(body.get("text", "")).strip()
+    if not text:
+        return jsonify({"error": "text required"}), 400
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "text": text,
+        "source": str(body.get("source", "manual")),
+        "dismissed": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return jsonify(_add("personal-announcements.json", item)), 201
+
+
+@app.route("/api/personal/announcements/<item_id>/dismiss", methods=["PATCH"])
+def dismiss_personal_announcement(item_id):
+    """Dismiss a personal announcement.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Dismissed announcement
+      404:
+        description: Not found
+    """
+    item = _patch("personal-announcements.json", item_id, lambda i: i.__setitem__("dismissed", True))
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
+
+
+# ── Personal News ────────────────────────────────────────────────────────────
+
+@app.route("/api/personal/news", methods=["GET"])
+def get_personal_news():
+    """Get all personal news articles.
+    ---
+    tags: [Personal]
+    responses:
+      200:
+        description: List of articles, newest first
+    """
+    return jsonify(_list("personal-news.json"))
+
+
+@app.route("/api/personal/news", methods=["POST"])
+def add_personal_news():
+    """Add a personal news article.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [title, url]
+          properties:
+            title:
+              type: string
+            url:
+              type: string
+            source:
+              type: string
+            date:
+              type: string
+    responses:
+      201:
+        description: Created article
+      400:
+        description: title and url required
+    """
+    body = request.get_json(force=True) or {}
+    title = str(body.get("title", "")).strip()
+    url = str(body.get("url", "")).strip()
+    if not title or not url:
+        return jsonify({"error": "title and url required"}), 400
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "title": title,
+        "url": url,
+        "source": str(body.get("source", "")),
+        "date": str(body.get("date", datetime.now(timezone.utc).date().isoformat())),
+        "read": False,
+    }
+    return jsonify(_add_first("personal-news.json", item)), 201
+
+
+@app.route("/api/personal/news/<item_id>", methods=["DELETE"])
+def delete_personal_news(item_id):
+    """Delete a personal news article.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      204:
+        description: Deleted
+      404:
+        description: Not found
+    """
+    if not _delete("personal-news.json", item_id):
+        return jsonify({"error": "not found"}), 404
+    return "", 204
+
+
+@app.route("/api/personal/news/<item_id>/read", methods=["PATCH"])
+def mark_personal_news_read(item_id):
+    """Mark a personal news article as read.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Updated article
+      404:
+        description: Not found
+    """
+    item = _patch("personal-news.json", item_id, lambda i: i.__setitem__("read", True))
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
+
+
+# ── Personal Music ───────────────────────────────────────────────────────────
+
+@app.route("/api/personal/music", methods=["GET"])
+def get_personal_music():
+    """Get all personal music links.
+    ---
+    tags: [Personal]
+    responses:
+      200:
+        description: List of music links
+    """
+    return jsonify(_list("personal-music.json"))
+
+
+@app.route("/api/personal/music", methods=["POST"])
+def add_personal_music():
+    """Add a personal music link.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [title, url]
+          properties:
+            title:
+              type: string
+            url:
+              type: string
+            artist:
+              type: string
+            icon:
+              type: string
+    responses:
+      201:
+        description: Created music link
+      400:
+        description: title and url required
+    """
+    body = request.get_json(force=True) or {}
+    title = str(body.get("title", "")).strip()
+    url = str(body.get("url", "")).strip()
+    if not title or not url:
+        return jsonify({"error": "title and url required"}), 400
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "title": title,
+        "url": url,
+        "artist": str(body.get("artist", "")),
+        "icon": str(body.get("icon", "🎵")),
+    }
+    return jsonify(_add("personal-music.json", item)), 201
+
+
+@app.route("/api/personal/music/<item_id>", methods=["DELETE"])
+def delete_personal_music(item_id):
+    """Delete a personal music link.
+    ---
+    tags: [Personal]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      204:
+        description: Deleted
+      404:
+        description: Not found
+    """
+    if not _delete("personal-music.json", item_id):
         return jsonify({"error": "not found"}), 404
     return "", 204
 
