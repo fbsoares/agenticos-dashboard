@@ -13,9 +13,14 @@ const OUTPUT = join(__dirname, 'session-data.json');
 const MAX_CONTEXT = 200_000;
 const RECENT_DAYS = 14;
 
+const ANTIGRAVITY_DIR = join(homedir(), '.gemini', 'antigravity-cli');
+const ANTIGRAVITY_BRAIN_DIR = join(ANTIGRAVITY_DIR, 'brain');
+const ANTIGRAVITY_HISTORY_FILE = join(ANTIGRAVITY_DIR, 'history.jsonl');
+
 async function parseTranscript(filePath) {
   const session = {
     session_id: basename(filePath, '.jsonl'),
+    provider: 'claude',
     name: null, cwd: null, rc_url: null,
     first_active: null, last_active: null,
     git_branch: null, model: null,
@@ -102,6 +107,61 @@ async function parseTranscript(filePath) {
   return session;
 }
 
+function loadAntigravityHistoryMap() {
+  const map = {};
+  let lines;
+  try { lines = readFileSync(ANTIGRAVITY_HISTORY_FILE, 'utf8').split('\n'); }
+  catch { return map; }
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    let obj;
+    try { obj = JSON.parse(line); } catch { continue; }
+    if (obj.conversationId && obj.workspace) map[obj.conversationId] = obj.workspace;
+  }
+  return map;
+}
+
+async function parseAntigravityTranscript(brainDir, historyMap) {
+  const sessionId = basename(brainDir);
+  const transcriptPath = join(brainDir, '.system_generated', 'logs', 'transcript.jsonl');
+  const session = {
+    session_id: sessionId,
+    provider: 'antigravity',
+    name: null,
+    cwd: historyMap[sessionId] || null,
+    rc_url: null,
+    first_active: null, last_active: null,
+    git_branch: null, model: null,
+    last_prompt: null,
+    ctx_tokens: 0, ctx_pct: 0,
+    total_turns: 0,
+  };
+
+  try {
+    const rl = createInterface({ input: createReadStream(transcriptPath), crlfDelay: Infinity });
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      let obj;
+      try { obj = JSON.parse(line); } catch { continue; }
+
+      if (obj.created_at) {
+        if (!session.first_active) session.first_active = obj.created_at;
+        session.last_active = obj.created_at;
+      }
+
+      if (obj.source === 'USER_EXPLICIT' && obj.type === 'USER_INPUT' && obj.content) {
+        const inner = obj.content.replace(/^<USER_REQUEST>\n?/, '').replace(/\n?<\/USER_REQUEST>[\s\S]*$/, '');
+        if (inner.trim()) {
+          session.last_prompt = inner.slice(0, 160).replace(/\n+/g, ' ').trim();
+          session.total_turns++;
+        }
+      }
+    }
+  } catch { /* unreadable file or missing transcript */ }
+
+  return session;
+}
+
 function loadHookSessions() {
   try {
     return JSON.parse(readFileSync(SESSIONS_JSON, 'utf8'));
@@ -151,6 +211,26 @@ async function main() {
 
       sessions.push(s);
     }
+  }
+
+  const antigravityHistoryMap = loadAntigravityHistoryMap();
+  let brainDirs;
+  try { brainDirs = readdirSync(ANTIGRAVITY_BRAIN_DIR); } catch { brainDirs = []; }
+  for (const dir of brainDirs) {
+    const brainPath = join(ANTIGRAVITY_BRAIN_DIR, dir);
+    let stat;
+    try { stat = statSync(brainPath); } catch { continue; }
+    if (!stat.isDirectory()) continue;
+
+    const s = await parseAntigravityTranscript(brainPath, antigravityHistoryMap);
+    if (!s.last_active) continue;
+    if (new Date(s.last_active) < cutoff) continue;
+
+    const age = Date.now() - new Date(s.last_active).getTime();
+    s.active = age < 2 * 3600_000;
+    s.ended = null;
+
+    sessions.push(s);
   }
 
   sessions.sort((a, b) => new Date(b.last_active) - new Date(a.last_active));
