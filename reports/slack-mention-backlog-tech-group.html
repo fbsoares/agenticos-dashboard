@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tech Group (@tech) — Slack Backlog</title>
+<style>
+:root[data-theme="dark"] {
+  --bg: #0f172a; --bg2: #1e293b; --bg3: #334155;
+  --text: #e2e8f0; --text2: #94a3b8; --border: #475569;
+  --card-bg: #1e293b; --done-bg: #0f2e1f; --tag-channel: #1e3a5f; --tag-dm: #2d1b4e;
+  --answer-bg: #1a1040; --answer-text: #c4b5fd;
+}
+:root[data-theme="light"] {
+  --bg: #f1f5f9; --bg2: #ffffff; --bg3: #e2e8f0;
+  --text: #1e293b; --text2: #64748b; --border: #cbd5e1;
+  --card-bg: #ffffff; --done-bg: #dcfce7;
+  --tag-channel: #dbeafe; --tag-dm: #ede9fe;
+  --answer-bg: #f5f3ff; --answer-text: #4c1d95;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+header { background: linear-gradient(135deg, #1a0033, #4a154b); border-bottom: 2px solid #7c3aed; padding: 20px 24px; }
+header h1 { font-size: 1.4rem; font-weight: 700; color: #e9d5ff; margin-bottom: 4px; }
+header .meta { font-size: 0.8rem; color: #c4b5fd; opacity: 0.8; margin-bottom: 14px; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filter-btn { padding: 6px 16px; border-radius: 20px; border: 1px solid #7c3aed; background: transparent; color: #c4b5fd; cursor: pointer; font-size: 0.8rem; transition: all 0.15s; }
+.filter-btn.active, .filter-btn:hover { background: #7c3aed; color: #fff; }
+.theme-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid #475569; background: transparent; color: var(--text2); cursor: pointer; font-size: 0.8rem; }
+.export-evals-btn { font-size: 0.78rem; padding: 5px 14px; border-radius: 20px; border: 1px solid #475569; background: transparent; color: var(--text2); cursor: pointer; }
+.container { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+.metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.metric-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; text-align: center; }
+.metric-card .val { font-size: 1.8rem; font-weight: 700; color: #a78bfa; }
+.metric-card .lbl { font-size: 0.72rem; color: var(--text2); margin-top: 2px; }
+.progress-bar-wrap { background: var(--bg3); border-radius: 6px; height: 8px; margin-bottom: 22px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #7c3aed, #22c55e); border-radius: 6px; transition: width 0.4s ease; }
+.section-label { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); margin: 22px 0 8px; padding-left: 4px; }
+.task-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; padding: 12px 14px; display: flex; gap: 12px; cursor: pointer; transition: opacity 0.15s, background 0.15s; }
+.task-item:hover { border-color: #7c3aed; }
+.task-item.done { background: var(--done-bg); opacity: 0.55; }
+.task-item.hidden { display: none; }
+.task-checkbox { width: 20px; height: 20px; min-width: 20px; border: 2px solid var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; margin-top: 2px; transition: all 0.15s; }
+.task-item.done .task-checkbox { background: #22c55e; border-color: #22c55e; color: #fff; }
+.task-body { flex: 1; min-width: 0; }
+.task-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.tag { font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.tag.channel { background: var(--tag-channel); color: #93c5fd; }
+.tag.dm { background: var(--tag-dm); color: #c4b5fd; }
+.tag.sender { background: var(--bg3); color: var(--text2); }
+.tag.priority-high { background: #7f1d1d; color: #fca5a5; }
+.tag.escalate { background: #7f1d1d; color: #fca5a5; }
+.task-text { font-size: 0.88rem; line-height: 1.5; color: var(--text); }
+.task-item.done .task-text { text-decoration: line-through; color: var(--text2); }
+.task-action { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.slack-link { font-size: 0.75rem; color: #a78bfa; text-decoration: none; }
+.slack-link:hover { text-decoration: underline; }
+.task-date { font-size: 0.72rem; color: var(--text2); }
+.proposed-answer { margin-top: 10px; border-left: 3px solid #7c3aed; padding: 8px 12px; border-radius: 0 6px 6px 0; font-size: 0.88em; background: var(--answer-bg); color: var(--answer-text); white-space: pre-wrap; }
+.proposed-answer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.answer-actions { display: flex; gap: 6px; align-items: center; }
+.ai-badge { font-size: 0.72em; opacity: 0.75; }
+.copy-btn { font-size: 0.72em; padding: 2px 10px; border-radius: 4px; cursor: pointer; background: #7c3aed; color: #fff; border: none; }
+.eval-btn { font-size: 0.85em; padding: 2px 6px; border-radius: 4px; cursor: pointer; background: transparent; border: 1px solid var(--border); opacity: 0.5; transition: all 0.15s; }
+.eval-btn.active-up { opacity: 1; background: #14532d; border-color: #22c55e; }
+.eval-btn.active-down { opacity: 1; background: #7f1d1d; border-color: #ef4444; }
+.actual-answer-panel { margin-top: 8px; display: none; flex-direction: column; gap: 6px; }
+.actual-answer-panel.visible { display: flex; }
+.actual-answer-panel label { font-size: 0.72em; opacity: 0.75; }
+.actual-answer-panel textarea { background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: 4px; padding: 6px; font-size: 0.82em; resize: vertical; }
+.actual-answer-panel button { align-self: flex-end; font-size: 0.72em; padding: 2px 10px; border-radius: 4px; cursor: pointer; background: #334155; color: #e2e8f0; border: none; }
+footer { text-align: center; font-size: 0.72rem; color: var(--text2); padding: 20px; border-top: 1px solid var(--border); }
+@media (max-width: 600px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>💬 Tech Group (@tech)</h1>
+  <div class="meta">Loaded from search on 2026-07-07 · 70 tasks · Fetched up to 2026-07-07 16:54 BST</div>
+  <div class="controls">
+    <button class="filter-btn active" onclick="setFilter('all')">Todos</button>
+    <button class="filter-btn" onclick="setFilter('pending')">Pendentes</button>
+    <button class="filter-btn" onclick="setFilter('done')">Feitos</button>
+    <button class="theme-btn" onclick="toggleTheme()">🌓 Tema</button>
+    <button class="export-evals-btn" onclick="exportEvals()">📤 Exportar Feedback</button>
+  </div>
+</header>
+<div class="container">
+  <div class="metrics-grid">
+    <div class="metric-card"><div class="val" id="m-total">70</div><div class="lbl">Total</div></div>
+    <div class="metric-card"><div class="val" id="m-pending">-</div><div class="lbl">Pendentes</div></div>
+    <div class="metric-card"><div class="val" id="m-done">-</div><div class="lbl">Feitos</div></div>
+    <div class="metric-card"><div class="val" id="m-pct">-</div><div class="lbl">Progresso</div></div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+  <div id="task-list"></div>
+</div>
+<footer>Tech Group (@tech) · tech-group · Generated 2026-07-07 · Fetched up to 2026-07-07 16:54 BST · State persisted in localStorage</footer>
+
+<script>
+const META = {
+  searchId: 'tech-group',
+  label: 'Tech Group (@tech)',
+  lastTs: '1783439640.457469',
+  fetchedUpTo: '2026-07-07 16:54 BST',
+  generatedAt: '2026-07-07',
+  stateFile: 'data/slack-mentions-tech-group-state.json',
+};
+
+const STORAGE_KEY = 'slack-mention-backlog-tech-group-v1';
+const EVAL_KEY = 'slack-mention-evals-tech-group-v1';
+
+const TASKS = [
+  {id:"slack-mention-tech-group-1783439640457469",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-07 16:54",text:"Decisão: Pedro Silva (#support-tech-biz) — SPOC21052026_01560 (Sushi In The House, sincronização E-goi 15/30/90 dias, GOAPI-3973 Done em produção): pergunta se podem fechar. Confirmar.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783439640457469?thread_ts=1779381559.922139&cid=C01HKHEK45Q",proposed_answer:"Sim, pode fechar — GOAPI-3973 está Done e a correção do campo Orders Last 90 Days já está em produção.\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783439617311169",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-07 16:53",text:"Decisão: Pedro Silva (#support-tech-biz) — SPOC07052026_01472 (Sushi at Home, promocodes com utilizações erradas, GOAPI-3894 Done em produção): pergunta se podem fechar. Confirmar.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783439617311169?thread_ts=1778167928.232709&cid=C01HKHEK45Q",proposed_answer:"Sim, pode fechar — GOAPI-3894 está Done e a correção já está em produção.\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783439592991749",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-07 16:53",text:"Decisão: Pedro Silva (#support-tech-biz) — SPOC27042026_01366 (Sushi & Poke, NIF não passa para Grubtech, GOAPI-3814 Done em produção): pergunta se podem fechar. Confirmar.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783439592991749?thread_ts=1777292033.255019&cid=C01HKHEK45Q",proposed_answer:"Sim, pode fechar — GOAPI-3814 está Done. O NIF não aparece na grid da Grubtech por limitação deles, mas confirmámos que passa corretamente na fatura.\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783439586474019",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-07 16:53",text:"Decisão: Pedro Silva (#support-tech-biz) — SPOC09042026_01297 (SITH, ativação de funcionalidades E-goi, GOAPI-3766 Done em produção): pergunta se podem fechar. Confirmar.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783439586474019?thread_ts=1775745333.651689&cid=C01HKHEK45Q",proposed_answer:"Sim, pode fechar — GOAPI-3766 está Done e a funcionalidade já está em produção.\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783438356097849",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-07-07 16:32",text:"Pedro Silva + Adriana Fragoso (#support-tech-biz) — desligar loja online Just Sushi Viana do Castelo: SPOC20042026_01333, SPOC07052026_01476, SPOC29042026_01391, SPOC15042026_01321, SPOC03072026_01782. Pedro já removeu acessos/passwords e fechou lojas no BO ('algo mais?'); Adriana pede para confirmar se todos os tickets do cliente estão cancelados. Confirmar e cancelar os que faltarem.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783438356097849?thread_ts=1783423986.226109&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783424552489059",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-07 12:42",text:"Mónica Rocha + Pedro Silva (#support-tech-biz) — thread 1779457335: Mónica pergunta se já há templates de comunicação para a E-goi (cc marketing); Pedro pergunta se 'Atualizado em produção' significa que já podem fechar o SPOC. Responder aos dois pontos.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783424552489059?thread_ts=1779457335.278839&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783421319631729",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-07 11:48",text:"Mónica Rocha (#support-tech-biz) — thread 1771407861: pergunta se há feedback e quais os próximos passos. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783421319631729?thread_ts=1771407861.316219&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783416739884309",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-07 10:32",text:"Pedro Silva (#support-tech-biz) — thread 1783416712: pede a tech para verificar o pedido. Abrir thread para contexto e responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783416739884309?thread_ts=1783416712.678699&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783360875416479",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-06 19:01",text:"Pedro Silva (#support-tech-biz) — thread 1783348740 (Too Good To Go, Paulo da Virtual Data em FUP repetido): feedback do Paulo indica confusão entre menu takeaway e Alverca; Pedro também pergunta onde fica a opção 'visível no site' para este produto (não deve aparecer no site). Esclarecer e responder ao Paulo.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783360875416479?thread_ts=1783348740.866749&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783350137307409",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-06 16:02",text:"Bruna Marcos (#support-tech-biz) — thread 1776683154 (integração Grubtech): pergunta como ficou a questão e quando conseguem testar com o cliente. Dar update.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783350137307409?thread_ts=1776683154.984959&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783350092251989",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-06 16:01",text:"Bruna Marcos (#support-tech-biz) — thread 1777981735: pergunta previsão de conclusão. Dar estimativa de data.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783350092251989?thread_ts=1777981735.193869&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783349997033729",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-07-06 15:59",text:"Bruna Marcos (#support-tech-biz) — thread 1782833910: cliente deu ok para até 8h de desenvolvimento paga; Bruna pergunta se tech já pegou no tema e pede orçamento de horas para cobrar ao cliente. Responder com estimativa.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783349997033729?thread_ts=1782833910.996199&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783333331159739",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-06 11:22",text:"Pedro Silva (#support-tech-biz) — thread 1782819560: feedback já enviado ao cliente via chat, mas a POC pergunta onde aparece essa opção; Pedro não encontra documentação sobre o Módulo Chef. Indicar onde está o módulo e partilhar documentação.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783333331159739?thread_ts=1782819560.578809&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783333019292539",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-07-06 11:16",text:"Mónica Rocha (#support-tech-biz) — thread 1782479765: ticket estava 'Preciso de estimativa', requer desenvolvimento; Mónica precisa saber quantas horas para propor valor ao cliente. Reenviado para tech — fornecer estimativa de horas.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783333019292539?thread_ts=1782479765.972419&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783324803253749",sender:"Rita Ferreira",channel:"#hands-on-tech",channelType:"channel",priority:"normal",date:"2026-07-06 09:00",text:"Rita Ferreira (#hands-on-tech) — thread 1782724999: pede a tech/Ruben para rever um manual e partilhar feedback se são precisos ajustes. Rever e responder.",permalink:"https://dig-inpt.slack.com/archives/C07UU80DWJ1/p1783324803253749?thread_ts=1782724999.387729&cid=C07UU80DWJ1",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783073618526609",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-07-03 11:13",text:"Bruna Marcos (#support-tech-biz) — thread 1783068032: cliente não está a pagar, pede prioridade urgente neste pedido. Priorizar e responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783073618526609?thread_ts=1783068032.427989&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783071119851619",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-03 10:31",text:"Luisa Castro + Bruna Marcos (#support-tech-biz) — thread 1773418289 (pagamentos, email digitalpayments@outdare.pt): support não tem acesso à thread de email; propõem 2 soluções (tech envia email com support em CC, ou tech partilha email/CCs para nova thread via email de support). Bruna também pergunta se falta enviar email à UNICRE. Escolher solução e responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783071119851619?thread_ts=1773418289.838699&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783004431326699",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 16:00",text:"Luisa Castro (#support-tech-biz) — thread 1782372675: pergunta se há resposta à sugestão da POC, para lhe dar feedback. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783004431326699?thread_ts=1782372675.191809&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783004392934699",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 15:59",text:"Luisa Castro (#support-tech-biz) — thread 1780649380: pergunta o que mais falta fazer para concluir o SPOC. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783004392934699?thread_ts=1780649380.397269&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783004352256889",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 15:59",text:"Luisa Castro (#support-tech-biz) — thread 1773166581: pergunta se falta mais alguma coisa para ajudar no fecho do SPOC. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783004352256889?thread_ts=1773166581.535219&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783004120096569",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 15:55",text:"Luisa Castro (#support-tech-biz) — thread 1772215807: pergunta se há alguma novidade. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783004120096569?thread_ts=1772215807.576759&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783003485722459",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 15:44",text:"Luisa Castro (#support-tech-biz) — thread 1779890922: precisa de feedback de tech. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783003485722459?thread_ts=1779890922.962979&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1783003422796909",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 15:43",text:"Luisa Castro (#support-tech-biz) — thread 1779698842: pede ajuda de tech. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1783003422796909?thread_ts=1779698842.290849&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782987964409029",sender:"Adriana Fragoso",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 11:26",text:"Adriana Fragoso (#support-tech-biz) — thread 1782392445: falta 1 logotipo (Recuperar Portugal, dos 4 pedidos), já anexou a versão a branco (mesma cor dos outros). Adicionar o logotipo em falta.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782987964409029?thread_ts=1782392445.614429&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782982676449589",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 09:57",text:"Luisa Castro (#support-tech-biz) — thread 1782389898: pergunta se é preciso alguma ação de suporte. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782982676449589?thread_ts=1782389898.508909&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782982599955709",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-02 09:56",text:"Luisa Castro (#support-tech-biz) — thread 1782305776: pergunta se é preciso alguma ação de suporte. Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782982599955709?thread_ts=1782305776.704259&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782919359284629",sender:"Rita Ferreira",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-07-01 16:22",text:"Rita Ferreira + Adriana Fragoso (#support-tech-biz) — thread 1782911568 (manual-volta.dig-in.io): Rita fez alterações (faltava o passo das configurações de settings) e pede revisão; Adriana pede para passar o tema para tech alocar no sprint. Rever o manual e alocar.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782919359284629?thread_ts=1782911568.787829&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782820157985329",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-30 12:49",text:"Luisa Castro (#support-tech-biz) — precisa dos métodos de pagamento que estavam ativos antes do update, para cruzar com os que estão ativos agora pós-update. Fornecer lista.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782820157985329?thread_ts=1782818973.188639&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782404258856029",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-25 17:17",text:"Mónica Rocha (#support-tech-biz) — JBS SDR (GOAPI-3912 em produção 23/06): POC João aguarda email da DIG-IN à InforPOS sobre taxa SDR e reunião com Francisco sobre staging do site. Mónica pergunta o que tech precisa dela e quer mover SPOC de volta para tech. Responder e dar previsão.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782404258856029?thread_ts=1778063807.806619&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782384714980559",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-25 11:51",text:"Mónica Rocha (#support-tech-biz) — SPOC25062026_01747 (Home Sushi Viseu, GOAPI-4077 plugin update): cliente quer actualização de plugins (desenvolvimento pago, não manutenção). Mónica precisa de estimativa de horas para indicar valor ao cliente. Fornecer estimativa.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782384714980559?thread_ts=1782384062.603769&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782332237367369",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-24 21:17",text:"Pedro Silva (#support-tech-biz) — SPOC20022026_01003 (Home Sweet Sushi checkout faturação, GOAPI-3591 Done 23/06): Pedro pergunta se support precisa fazer algo do lado deles ou se podem fechar o SPOC. Orientar e fechar se não houver acção pendente.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782332237367369?thread_ts=1771610571.318279&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782300229412729",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-24 12:23",text:"Luísa Castro (#support-tech-biz) — SPOC08012026_00704 (Casavostra integração Grubtech, reaberto): Grubtech resolveu issue do NIF. Luísa pergunta o que support precisa fazer para dar seguimento. Indicar próximos passos: contactar Grubtech/cliente para sync de menu.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782300229412729?thread_ts=1775660892.553089&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782296025428839",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-24 11:13",text:"Decisão: Pedro Silva (#support-tech-biz) — SPOC07052026_01477 (Home Sushi Viseu emails Brevo): Pedro preparou explicação sobre connection timeout no servidor de email do Viseu Ryokan (não é problema da DIG-IN/Brevo). Confirmar se está correcto e pode ser partilhado com o POC.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782296025428839?thread_ts=1778182781.390209&cid=C01HKHEK45Q",proposed_answer:"Está correcto — connection timeout é problema do lado do servidor de email do hotel (Viseu Ryokan), não da DIG-IN nem da Brevo. Podes partilhar com o POC. Sugere que contactem o suporte de IT do hotel a indicar o IP 77.32.148.25 e o erro de connection timeout.\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782290772432859",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-24 09:46",text:"Luísa Castro (#support-tech-biz) — SPOC13032026_01139 (Sushi&Poke pagamentos): Bruna quer ativar Multibanco + Dinheiro no POS agora (MBWAY Site fica para depois). Luísa pergunta se ativação é algo feito do lado de tech ou se support pode ativar no BO. Confirmar.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782290772432859?thread_ts=1773418289.838699&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782215855439549",sender:"Adriana Fragoso",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-23 12:57",text:"Adriana Fragoso (#support-tech-biz) reportou sistema SITH em baixo (23/06 12:57) e disse que ia abrir SPOC. Verificar se foi resolvido e confirmar estado a Adriana — sem resposta em thread.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782215855439549",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782207651160739",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-23 10:40",text:"Mónica Rocha: cliente JBS aguarda update e previsão para testar SDR Volta em BackOffice com integração POS ZoneSoft. Dar resposta urgente.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782207651160739?thread_ts=1778063807.806619&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782207385308899",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-23 10:36",text:"Luisa Castro: EDGAR em baixo (23/06 10:36) — edgar.dig-in.io inacessível e SPOC submetido não abriu. Investigar e resolver.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782207385308899?thread_ts=1782207385.308899&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782206661996649",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-23 10:24",text:"Decisão: Mónica Rocha — SPOC05052026_01429 (Sushi@Home Design/UI) em 'Tech Pending' com draft pronto (GOAPI-3860 em QA): é para o cliente validar agora ou aguarda? Esclarecer e enviar ao POC.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782206661996649?thread_ts=1777975392.440509&cid=C01HKHEK45Q",proposed_answer:"Sim, é para o cliente validar — o Jira (GOAPI-3860) está em QA com o draft do site pronto. Enviem o link ao POC para validação. O SPOC fica em Tech Pending até confirmação do cliente.\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782206393125199",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-23 10:19",text:"Pedro Silva: POC a fazer pressão novamente na thread 1779989197. Verificar estado e dar resposta urgente.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782206393125199?thread_ts=1779989197.755539&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782204943089909",sender:"Rita Ferreira",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-23 09:55",text:"Rita Ferreira: Sushi & Poke (Santarém) — cliente encontrou tickets impressos com data de ontem (loja estava fechada). Perguntam se bug de timing já foi detetado. Dar resposta.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782204943089909?thread_ts=1782063548.682239&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782204160346039",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-23 09:42",text:"Decisão: Bruna Marcos — SPOC13032026_01139 (Sushi & Poke, pagamentos online): pergunta se podem deixar configuração como está (MBWAY pronto, CC pendente Unicre, aguarda confirmação do Márcio).",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782204160346039?thread_ts=1773418289.838699&cid=C01HKHEK45Q",proposed_answer:"Sim, podemos deixar assim — MBWAY está configurado e testado (GOAPI-3929), CC está pendente da Unicre (fora do nosso controlo). Aguarda confirmação do Márcio para ativar MBWAY no BO.\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782142816428179",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 16:40",text:"Luisa Castro: pede input de tech na thread 1775652286 (#support-tech-biz). Abrir thread e dar feedback.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782142816428179?thread_ts=1775652286.420969&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782140019492949",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 15:53",text:"Luisa Castro: pergunta o que tech precisa de suporte na thread 1777478911. Responder com próximo passo para support.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782140019492949?thread_ts=1777478911.195799&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782139982914289",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 15:53",text:"Luisa Castro: pergunta o que é necessário do lado de suporte na thread 1777538333. Responder com o que support precisa de fazer.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782139982914289?thread_ts=1777538333.600749&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782138147946139",sender:"Ruben",channel:"#hands-on-tech",channelType:"channel",priority:"normal",date:"2026-06-22 15:22",text:"Ruben: novo estado 'Tech Consultation' criado no SPOC (#hands-on-tech). Ler instruções — quando Support pede consulta, responder na thread e mudar estado para 'Needs Support Action'.",permalink:"https://dig-inpt.slack.com/archives/C07UU80DWJ1/p1782138147946139",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782136171374339",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 14:49",text:"Decisão: Luisa Castro — SPOC22062026_01729 (DIG-IN Geral, acesso limitado a repositórios a partir de agosto): é para enviar para tech? Confirmar e escalar se necessário.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782136171374339?thread_ts=1782134665.599939&cid=C01HKHEK45Q",proposed_answer:"Sim, manda para tech — limitações de acesso a repositórios requerem ação do lado de tech.\nSugestão: Escalar para tech — abrir Jira com contexto do thread.\n— AI assisted",escalate_to_tech:true},
+  {id:"slack-mention-tech-group-1782135174414599",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 14:32",text:"Decisão: Pedro Silva — SPOC08042026_01291 (Home Sweet Sushi, pedidos agendados Uber Eats): Jira GOAPI-3760 Done, cliente confirmou que está tudo a funcionar. Pode fechar o SPOC?",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782135174414599?thread_ts=1775640172.986339&cid=C01HKHEK45Q",proposed_answer:"Sim, podem fechar — o Jira (GOAPI-3760) está Done e o cliente confirmou que os pedidos agendados estão a funcionar corretamente. (Nota: o SPOC já foi fechado automaticamente.)\n— AI assisted",escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782132419563779",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-22 13:46",text:"Pedro Silva: POC passou novo feedback dizendo que ainda não lhe aparece. Verificar o que não aparece e dar resposta urgente.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782132419563779?thread_ts=1781533799.620009&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782128732719709",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-22 12:45",text:"Luisa Castro: EDGAR está em baixo — sem notificações ao fechar/abrir SPOCs e edgar.dig-in.io a mostrar página de erro. Investigar e resolver.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782128732719709?thread_ts=1782128732.719709&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782123767705319",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 11:22",text:"Decisão: Luisa Castro — integração Techsul/Casavostra (ZoneSoft SPOC19052026_01536): confirmar se lado de tech está tudo feito. Grubtech NIF resolvido — Francisco confirmou que voltamos ao plano original com Grubtech. Orientar support sobre próximos passos.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782123767705319?thread_ts=1779210074.652299&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782121079920879",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-22 10:37",text:"Mónica Rocha: JBS a perguntar se pode testar hoje como combinado. Dar novidades urgentemente. cc @support.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782121079920879?thread_ts=1778063807.806619&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782120773864409",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 10:32",text:"Luisa Castro: SPOC com ticket ZBUN-1249 já está como 'tech pending' e foi enviado para tech. Verificar estado e dar feedback a Luísa.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782120773864409?thread_ts=1782120666.893819&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782120635352309",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 10:30",text:"Mónica Rocha: Fornecer estimativa de tempo num SPOC (thread 1780483341) para Mónica calcular valor a cobrar. Horas não visíveis no Airtable.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782120635352309?thread_ts=1780483341.392119&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782120577824599",sender:"Mónica Rocha",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 10:29",text:"Mónica Rocha: Fornecer estimativa de tempo num segundo SPOC (thread 1780483506) para Mónica calcular valor a cobrar. Horas não visíveis no Airtable.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782120577824599?thread_ts=1780483506.667199&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782120283333919",sender:"Filipa Valente",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 10:24",text:"Filipa Valente: Recuperar/reabrir SPOC onde issue continua a acontecer (thread 1733217359). Verificar thread para contexto e dar resposta.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782120283333919?thread_ts=1733217359.646229&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782120172454849",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-22 10:22",text:"Pedro Silva: Sushi & Poke — pedidos 102471 (Torres Novas, Multibanco) e 102520 (Santarém, Multibanco) chegaram fora de horas e ticket só imprimiu no dia seguinte. Investigar bug de timing.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782120172454849?thread_ts=1782063548.682239&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782120089856469",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 10:21",text:"Decisão: Bruna Marcos — ativar Multibanco + Dinheiro agora conforme pedido do cliente? MBWAY Site fica para depois. Pedidos chegam ao POS como Cartão Crédito/Débito e querem uniformizar para Multibanco.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782120089856469?thread_ts=1773418289.838699&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1782119873768969",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-22 10:17",text:"Pedro Silva: SPOC ex-Daniela — verificar em todos os sites com pagamentos online ativos se têm página de sucesso de pagamento criada. Confirmar se support pode testar sem pagamento real.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782119873768969?thread_ts=1778693975.227179&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781867727434609",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-19 12:15",text:"Luisa Castro: SPOC19062026_01717 — retirou classe CSS pedida mas imagem de fundo da listagem de produtos desapareceu. Aparece dentro do produto mas não na listagem. Ajudar a repor (sem editar CSS no WP).",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781867727434609?thread_ts=1781867626.024619&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781856006626669",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-19 09:00",text:"Pedro Silva + Ruben + Luísa: POC Márcio confirmou remoção de (+)/(-) mas quer também remover o '1' da quantidade. Feedback: 'fica aqui bastante perdido'. Verificar se possível e responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781856006626669?thread_ts=1777981347.645689&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781811648156269",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-18 20:40",text:"Decisão: Pedro Silva — MBWAY na Loja Caldas da Rainha, cliente reportou 'fica a pensar e não avança'. Support testou MBWAY e funcionou. Escalar para tech ou pedir mais testes ao Pedro?",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781811648156269?thread_ts=1781807994.827149&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781808930106099",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-18 19:55",text:"Pedro Silva: loja.kabukisushi.pt — ícones .svg a falhar com ERR_CERT_DATE_INVALID (SSL expirado no servidor de assets). SPOC18062026_01712. Resolver certificado SSL ou instruir Pedro.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781808930106099?thread_ts=1781808833.856779&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781808998077909",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-18 19:56",text:"Decisão: Pedro Silva — SPOC18062026_01712 (ícones kabukisushi): Pedro consegue resolver do lado de support ou tem de assinalar como 'send to tech team'? Responder.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781808998077909?thread_ts=1781808833.856779&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781806654064929",sender:"Pedro Silva",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-18 19:17",text:"Decisão: Pedro Silva + Ruben — Feature: criar forma de support consultar respostas da Uber Direct quando há atribuição de estafeta. Definir próximos passos.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781806654064929?thread_ts=1770393532.166039&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781789669440159",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-18 14:34",text:"Decisão: Luisa Castro — POC Joana do Soltroia aguarda feedback sobre vários pontos em falta. Preferem FUP thread a thread ou Luísa agrega e tech dá estimativas de tempo centralizadas?",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781789669440159?thread_ts=1778174627.761179&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781785599485519",sender:"Luisa Castro",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-18 13:26",text:"Luisa Castro: Supremacia Sushi — atualizar whitelist: trocar IP 37.187.77.196 pelo 5.135.114.97 (Paulo da Virtual Data trocou de servidor).",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781785599485519?thread_ts=1781785558.251099&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781774493802959",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"normal",date:"2026-06-18 10:21",text:"Bruna Marcos: cliente configurou o que estava em falta (thread 1779375915) — verificar se ficou OK do lado de tech. Não ativar ainda — Bruna aguarda ok do Márcio.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781774493802959?thread_ts=1779375915.598989&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false},
+  {id:"slack-mention-tech-group-1781774223965029",sender:"Bruna Marcos",channel:"#support-tech-biz",channelType:"channel",priority:"high",date:"2026-06-18 10:17",text:"Bruna Marcos: Sushi & Poke — 3 métodos pagamento em falta no POS Zonsoft desde 27/05: Multibanco (103), Dinheiro (1), MBWAY (104). Verificar SPOC aberto e resolver.",permalink:"https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781774223965029?thread_ts=1781774223.965029&cid=C01HKHEK45Q",proposed_answer:null,escalate_to_tech:false}
+];
+
+let currentFilter = 'all';
+
+function getState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
+}
+function saveState(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+function isDone(id) { return !!getState()[id]; }
+
+function toggleTask(id) {
+  const s = getState();
+  s[id] = !s[id];
+  saveState(s);
+  render();
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    const lbl = b.textContent.toLowerCase();
+    b.classList.toggle('active', (f === 'all' && lbl.includes('todos')) || (f === 'pending' && lbl.includes('pendentes')) || (f === 'done' && lbl.includes('feitos')));
+  });
+  render();
+}
+
+function toggleTheme() {
+  const h = document.documentElement;
+  h.setAttribute('data-theme', h.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+
+function getEvals() { try { return JSON.parse(localStorage.getItem(EVAL_KEY) || '[]'); } catch { return []; } }
+function saveEvals(e) { localStorage.setItem(EVAL_KEY, JSON.stringify(e)); }
+
+function evalAnswer(id, rating) {
+  const task = TASKS.find(t => t.id === id);
+  if (!task) return;
+  let evals = getEvals();
+  const existing = evals.find(e => e.taskId === id);
+  const entry = { taskId: id, rating, proposed_answer: task.proposed_answer, actual_answer: existing ? existing.actual_answer : null, rated_at: new Date().toISOString() };
+  evals = evals.filter(e => e.taskId !== id);
+  evals.push(entry);
+  saveEvals(evals);
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.classList.toggle('visible', rating === 'down');
+  render();
+}
+
+function saveActual(id) {
+  const ta = document.getElementById('actual-' + id);
+  if (!ta) return;
+  let evals = getEvals();
+  const entry = evals.find(e => e.taskId === id);
+  if (entry) { entry.actual_answer = ta.value; saveEvals(evals); }
+  const panel = document.getElementById('panel-' + id);
+  if (panel) { panel.classList.remove('visible'); }
+}
+
+function copyAnswer(id) {
+  const el = document.getElementById('answer-' + id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const btn = document.querySelector('[data-copy="' + id + '"]');
+    if (btn) { btn.textContent = 'Copiado!'; setTimeout(() => { btn.textContent = 'Copiar'; }, 1500); }
+  });
+}
+
+function exportEvals() {
+  const evals = getEvals().filter(e => e.rating === 'down');
+  if (!evals.length) { alert('Sem thumbs-down para exportar.'); return; }
+  const blob = new Blob([JSON.stringify(evals, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'slack-evals-tech-group.json';
+  a.click();
+}
+
+function taskHTML(t) {
+  const done = isDone(t.id);
+  const evals = getEvals();
+  const ev = evals.find(e => e.taskId === t.id);
+  const rating = ev ? ev.rating : null;
+  const hidden = (currentFilter === 'pending' && done) || (currentFilter === 'done' && !done);
+
+  let metaTags = `<span class="tag ${t.channelType}">${t.channel}</span>`;
+  metaTags += `<span class="tag sender">👤 ${t.sender}</span>`;
+  if (t.priority === 'high') metaTags += `<span class="tag priority-high">🔴 Urgente</span>`;
+  if (t.escalate_to_tech) metaTags += `<span class="tag escalate">⬆️ Escalar para Tech</span>`;
+
+  let answerBlock = '';
+  if (t.proposed_answer) {
+    const upClass = rating === 'up' ? 'active-up' : '';
+    const downClass = rating === 'down' ? 'active-down' : '';
+    const panelClass = rating === 'down' ? 'actual-answer-panel visible' : 'actual-answer-panel';
+    const savedActual = ev && ev.actual_answer ? ev.actual_answer : '';
+    const answerHtml = t.proposed_answer.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    answerBlock = `
+      <div class="proposed-answer" onclick="event.stopPropagation()">
+        <div class="proposed-answer-header">
+          <span class="ai-badge">🤖 AI assisted</span>
+          <div class="answer-actions">
+            <button class="copy-btn" data-copy="${t.id}" onclick="copyAnswer('${t.id}')">Copiar</button>
+            <button class="eval-btn ${upClass}" onclick="evalAnswer('${t.id}','up')">👍</button>
+            <button class="eval-btn ${downClass}" onclick="evalAnswer('${t.id}','down')">👎</button>
+          </div>
+        </div>
+        <div class="proposed-answer-text" id="answer-${t.id}">${answerHtml}</div>
+        <div class="${panelClass}" id="panel-${t.id}">
+          <label>Resposta que enviaste (para melhorar o modelo):</label>
+          <textarea id="actual-${t.id}" placeholder="Cola aqui a resposta que enviaste..." rows="3">${savedActual}</textarea>
+          <button onclick="saveActual('${t.id}')">Guardar</button>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="task-item${done ? ' done' : ''}${hidden ? ' hidden' : ''}" onclick="toggleTask('${t.id}')">
+      <div class="task-checkbox">${done ? '✓' : ''}</div>
+      <div class="task-body">
+        <div class="task-meta">${metaTags}</div>
+        <div class="task-text">${t.text}</div>
+        ${answerBlock}
+        <div class="task-action" onclick="event.stopPropagation()">
+          <a class="slack-link" href="${t.permalink}" target="_blank">💬 Open thread</a>
+          <span class="task-date">${t.date}</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function render() {
+  const urgent = TASKS.filter(t => t.priority === 'high');
+  const decisions = TASKS.filter(t => t.priority !== 'high' && (t.text.startsWith('Decisão:') || t.text.startsWith('Aprovar')));
+  const rest = TASKS.filter(t => t.priority !== 'high' && !t.text.startsWith('Decisão:') && !t.text.startsWith('Aprovar'));
+
+  let html = '';
+  if (urgent.length) {
+    html += `<div class="section-label">🔴 Urgente (${urgent.length})</div>`;
+    html += urgent.map(taskHTML).join('');
+  }
+  if (decisions.length) {
+    html += `<div class="section-label">⚖️ Decisões Pendentes (${decisions.length})</div>`;
+    html += decisions.map(taskHTML).join('');
+  }
+  if (rest.length) {
+    html += `<div class="section-label">💬 Respostas Pendentes (${rest.length})</div>`;
+    html += rest.map(taskHTML).join('');
+  }
+
+  document.getElementById('task-list').innerHTML = html;
+
+  const total = TASKS.length;
+  const done = TASKS.filter(t => isDone(t.id)).length;
+  const pending = total - done;
+  const pct = total ? Math.round(done / total * 100) : 0;
+
+  document.getElementById('m-total').textContent = total;
+  document.getElementById('m-pending').textContent = pending;
+  document.getElementById('m-done').textContent = done;
+  document.getElementById('m-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+render();
+</script>
+</body>
+</html>

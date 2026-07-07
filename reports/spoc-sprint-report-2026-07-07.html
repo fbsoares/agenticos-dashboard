@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SPOC Sprint Health — Sprint 08</title>
+<style>
+:root {
+  --bg: #0b0e14; --panel: #131722; --panel2: #1a1f2e; --border: #262c3d;
+  --text: #e6e9f0; --text-dim: #9aa3b8; --accent: #5b8def;
+  --green: #22c55e; --amber: #f59e0b; --red: #ef4444; --blue: #3b82f6; --gray: #6b7280;
+}
+[data-theme="light"] {
+  --bg: #f4f5f8; --panel: #ffffff; --panel2: #f0f1f5; --border: #dde1ea;
+  --text: #1a1d29; --text-dim: #5c6479; --accent: #3b6fd8;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f4f5f8; --panel: #ffffff; --panel2: #f0f1f5; --border: #dde1ea;
+    --text: #1a1d29; --text-dim: #5c6479; --accent: #3b6fd8;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0; padding: 24px; line-height: 1.5;
+}
+.wrap { max-width: 1280px; margin: 0 auto; }
+header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+.subhead { color: var(--text-dim); font-size: 0.9rem; }
+.theme-toggle {
+  background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+  border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 0.85rem;
+}
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px;
+}
+.card .label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+.card .value { font-size: 1.5rem; font-weight: 700; }
+.card .value.green { color: var(--green); }
+.card .value.amber { color: var(--amber); }
+.card .value.red { color: var(--red); }
+.card .sub { font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+
+details {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 16px; overflow: hidden;
+}
+summary {
+  padding: 14px 18px; cursor: pointer; font-weight: 600; font-size: 1rem;
+  list-style: none; display: flex; justify-content: space-between; align-items: center;
+}
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "▾"; color: var(--text-dim); transition: transform 0.15s; }
+details[open] summary::after { transform: rotate(180deg); }
+.section-body { padding: 0 18px 18px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+td.subj { white-space: normal; max-width: 320px; }
+th { position: sticky; top: 0; background: var(--panel2); cursor: pointer; user-select: none; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-dim); }
+th:hover { color: var(--text); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:nth-child(odd) { background: rgba(128,128,128,0.04); }
+.table-scroll { overflow-x: auto; }
+.row-done { opacity: 0.55; }
+.row-warn td:nth-child(7) { color: var(--amber); font-weight: 600; }
+.row-carry { background: rgba(245, 158, 11, 0.12) !important; }
+
+.bar { background: var(--panel2); border-radius: 4px; height: 8px; width: 100px; overflow: hidden; }
+.bar-fill { background: var(--accent); height: 100%; border-radius: 4px; }
+
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; color: #fff; }
+.status-Tech-Pending, .status-TO-DESCRIBE { background: #f59e0b; }
+.status-On-Hold { background: #6b7280; }
+.status-Client-Pending, .status-CLIENT-PENDING { background: #3b82f6; }
+.status-Open { background: #10b981; }
+.status-BIZ-Pending, .status-BIZ-PENDING { background: #ef4444; }
+.status-Closed, .status-Done { background: #22c55e; }
+.status-Canceled { background: #6b7280; }
+.status-CODE-REVIEW { background: #8b5cf6; }
+.status-QA { background: #f59e0b; }
+.status-In-Progress { background: #3b82f6; }
+.status-Escalated { background: #ef4444; }
+.status-To-Do { background: #6b7280; }
+.status-TO-PRODUCTION { background: #22c55e; }
+.status-Needs-Support-Action { background: #ef4444; }
+
+.flag-box { background: rgba(245,158,11,0.1); border: 1px solid var(--amber); border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 0.88rem; }
+.clean-box { background: rgba(34,197,94,0.1); border: 1px solid var(--green); border-radius: 8px; padding: 14px 16px; text-align: center; color: var(--green); font-weight: 600; }
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.compare-card { background: var(--panel2); border-radius: 8px; padding: 14px 16px; }
+.compare-card h3 { margin: 0 0 10px; font-size: 0.95rem; }
+.compare-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; border-bottom: 1px dashed var(--border); }
+.compare-row:last-child { border-bottom: none; }
+.delta-pos { color: var(--green); }
+.delta-neg { color: var(--red); }
+footer { text-align: center; color: var(--text-dim); font-size: 0.78rem; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>SPOC Sprint Health</h1>
+    <div class="subhead">Sprint 08 &middot; GOAPI-Sprint 08 / ZBUN Sprint 08 / DATA Sprint 08 | 29jun&ndash;13jul &middot; Generated 2026-07-07 &middot; 6 days remaining</div>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()">🌓 Toggle theme</button>
+</header>
+
+<div class="cards">
+  <div class="card"><div class="label">Tickets — Sprint Atual</div><div class="value">82</div></div>
+  <div class="card"><div class="label">SP Committed</div><div class="value">128</div></div>
+  <div class="card"><div class="label">SP Done</div><div class="value green">31 <span class="sub">(24%)</span></div></div>
+  <div class="card"><div class="label">SP Remaining</div><div class="value amber">97</div></div>
+  <div class="card"><div class="label">Carry-over In</div><div class="value green">0 <span class="sub">(0%)</span></div></div>
+  <div class="card"><div class="label">Allocation Gaps</div><div class="value red">35</div></div>
+  <div class="card"><div class="label">Days Remaining</div><div class="value">6</div></div>
+</div>
+
+<div class="flag-box">
+  🚀 <strong>Shipped mid-sprint:</strong> ZBUN-1461 (IMP01353) moved to <strong>TO PRODUCTION</strong> today (07jul). 18 tickets / 31 SP already closed out as <strong>Done</strong> this sprint — mostly quick GOAPI-40xx fixes from Ruben and Paulo Lima (SPOC25062026_0175x batch).
+</div>
+
+<details open>
+<summary>Sprint Comparison — Current vs Previous</summary>
+<div class="section-body">
+  <div class="compare-grid">
+    <div class="compare-card">
+      <h3>Previous — Sprint 07 (15jun&ndash;29jun)</h3>
+      <div class="compare-row"><span>Tickets committed</span><span>19</span></div>
+      <div class="compare-row"><span>SP committed</span><span>81</span></div>
+      <div class="compare-row"><span>SP done</span><span>81</span></div>
+      <div class="compare-row"><span>Completion %</span><span class="delta-pos">100%</span></div>
+      <div class="compare-row"><span>Carry-over out</span><span class="delta-pos">0</span></div>
+    </div>
+    <div class="compare-card">
+      <h3>Current — Sprint 08 (29jun&ndash;13jul, in progress)</h3>
+      <div class="compare-row"><span>Tickets committed</span><span>82</span></div>
+      <div class="compare-row"><span>SP committed</span><span>128</span></div>
+      <div class="compare-row"><span>SP done</span><span>31</span></div>
+      <div class="compare-row"><span>Completion % (so far)</span><span>24%</span></div>
+      <div class="compare-row"><span>Carry-over in</span><span class="delta-pos">0</span></div>
+    </div>
+  </div>
+  <p style="color:var(--text-dim); font-size:0.82rem; margin-top:12px;">
+    Velocity delta not directly comparable — Sprint 08 is mid-flight (day 9/15) vs Sprint 07's final tally. Sprint 08 also committed 47 more SP than Sprint 07 closed, mostly the DATA-3xx CODE REVIEW/QA batch (Ruben, 1 SP each, 14 tickets) with no linked SPOC.
+  </p>
+</div>
+</details>
+
+<details open>
+<summary>Carry-over Drill-down</summary>
+<div class="section-body">
+  <div class="clean-box">No carry-overs — clean sprint start ✓</div>
+</div>
+</details>
+
+<details open>
+<summary>Effort by SPOC Status</summary>
+<div class="section-body table-scroll">
+<table id="tbl-spocstatus">
+<thead><tr><th>SPOC Status</th><th>Tickets</th><th>SP</th><th>% of Sprint SP</th><th>Progress</th></tr></thead>
+<tbody>
+<tr><td>Tech Pending</td><td class="num">31</td><td class="num">67</td><td class="num">52%</td><td><div class="bar"><div class="bar-fill" style="width:52%"></div></div></td></tr>
+<tr><td>No SPOC (pure JIRA)</td><td class="num">35</td><td class="num">32</td><td class="num">25%</td><td><div class="bar"><div class="bar-fill" style="width:25%"></div></div></td></tr>
+<tr><td>Needs Support Action</td><td class="num">9</td><td class="num">20</td><td class="num">15%</td><td><div class="bar"><div class="bar-fill" style="width:15%"></div></div></td></tr>
+<tr><td>Closed</td><td class="num">7</td><td class="num">9</td><td class="num">7%</td><td><div class="bar"><div class="bar-fill" style="width:7%"></div></div></td></tr>
+
+</tbody>
+</table>
+</div>
+</details>
+
+<details open>
+<summary>Effort by Assignee (Support POC)</summary>
+<div class="section-body table-scroll">
+<table id="tbl-assignee">
+<thead><tr><th>Assignee</th><th>Tickets</th><th>SP Total</th><th>SP Done</th><th>SP Remaining</th><th>% Progress</th></tr></thead>
+<tbody>
+<tr><td>Francisco Soares</td><td class="num">30</td><td class="num">40</td><td class="num">4</td><td class="num">36</td><td><div class="bar"><div class="bar-fill" style="width:10%"></div></div></td></tr>
+<tr><td>Ruben</td><td class="num">27</td><td class="num">39</td><td class="num">6</td><td class="num">33</td><td><div class="bar"><div class="bar-fill" style="width:15%"></div></div></td></tr>
+<tr><td>Paulo Lima</td><td class="num">17</td><td class="num">33</td><td class="num">9</td><td class="num">24</td><td><div class="bar"><div class="bar-fill" style="width:27%"></div></div></td></tr>
+<tr><td>Clara Frazão</td><td class="num">5</td><td class="num">12</td><td class="num">11</td><td class="num">1</td><td><div class="bar"><div class="bar-fill" style="width:91%"></div></div></td></tr>
+<tr><td>Steven Murray</td><td class="num">1</td><td class="num">3</td><td class="num">0</td><td class="num">3</td><td><div class="bar"><div class="bar-fill" style="width:0%"></div></div></td></tr>
+<tr><td>unassigned</td><td class="num">2</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td><div class="bar"><div class="bar-fill" style="width:100%"></div></div></td></tr>
+
+</tbody>
+</table>
+</div>
+</details>
+
+<details open>
+<summary>JIRA Status Breakdown</summary>
+<div class="section-body table-scroll">
+<table id="tbl-jirastatus">
+<thead><tr><th>JIRA Status</th><th>Tickets</th><th>SP</th></tr></thead>
+<tbody>
+<tr><td><span class="badge status-Done">Done</span></td><td class="num">18</td><td class="num">31</td></tr>
+<tr><td><span class="badge status-Open">Open</span></td><td class="num">23</td><td class="num">28</td></tr>
+<tr><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">12</td><td class="num">18</td></tr>
+<tr><td><span class="badge status-QA">QA</span></td><td class="num">9</td><td class="num">16</td></tr>
+<tr><td><span class="badge status-In-Progress">In Progress</span></td><td class="num">6</td><td class="num">15</td></tr>
+<tr><td><span class="badge status-Escalated">Escalated</span></td><td class="num">7</td><td class="num">10</td></tr>
+<tr><td><span class="badge status-To-Do">To Do</span></td><td class="num">1</td><td class="num">4</td></tr>
+<tr><td><span class="badge status-Canceled">Canceled</span></td><td class="num">3</td><td class="num">3</td></tr>
+<tr><td><span class="badge status-BIZ-PENDING">BIZ PENDING</span></td><td class="num">1</td><td class="num">1</td></tr>
+<tr><td><span class="badge status-TO-DESCRIBE">TO DESCRIBE</span></td><td class="num">1</td><td class="num">1</td></tr>
+<tr><td><span class="badge status-TO-PRODUCTION">TO PRODUCTION</span></td><td class="num">1</td><td class="num">1</td></tr>
+
+</tbody>
+</table>
+</div>
+</details>
+
+<details open>
+<summary>Allocation Gaps — 35 tickets with no linked SPOC</summary>
+<div class="section-body table-scroll">
+<table id="tbl-gaps">
+<thead><tr><th>Issue Key</th><th>Client</th><th>JIRA Status</th><th>SP</th><th>POC</th></tr></thead>
+<tbody>
+<tr><td>GOAPI-3049</td><td>-</td><td><span class="badge status-To-Do">To Do</span></td><td class="num">4</td><td>Francisco Soares</td></tr>
+<tr><td>GOAPI-3223</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">3</td><td>Clara Frazão</td></tr>
+<tr><td>GOAPI-3442</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">2</td><td>Francisco Soares</td></tr>
+<tr><td>DATA-364</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">2</td><td>Ruben</td></tr>
+<tr><td>DATA-334</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>ZBUN-1461</td><td>-</td><td><span class="badge status-TO-PRODUCTION">TO PRODUCTION</span></td><td class="num">1</td><td>Clara Frazão</td></tr>
+<tr><td>GOAPI-3899</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>Francisco Soares</td></tr>
+<tr><td>DATA-369</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>GOAPI-3772</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>Francisco Soares</td></tr>
+<tr><td>DATA-331</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>DATA-368</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>DATA-333</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>DATA-371</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>DATA-328</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>DATA-329</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>GOAPI-3640</td><td>-</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">1</td><td>Paulo Lima</td></tr>
+<tr><td>DATA-370</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>DATA-365</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>DATA-366</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>ZBUN-1597</td><td>-</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">1</td><td>Paulo Lima</td></tr>
+<tr><td>GOAPI-3975</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>Francisco Soares</td></tr>
+<tr><td>DATA-367</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>GOAPI-3892</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>Francisco Soares</td></tr>
+<tr><td>GOAPI-4082</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>Francisco Soares</td></tr>
+<tr><td>GOAPI-3517</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>Ruben</td></tr>
+<tr><td>GOAPI-4095</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+<tr><td>GOAPI-4061</td><td>-</td><td><span class="badge status-Canceled">Canceled</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+<tr><td>ZBUN-1750</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+<tr><td>GOAPI-4047</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>Paulo Lima</td></tr>
+<tr><td>GOAPI-3991</td><td>-</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+<tr><td>GOAPI-4093</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+<tr><td>DATA-344</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>unassigned</td></tr>
+<tr><td>GOAPI-4083</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+<tr><td>DATA-319</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+<tr><td>GOAPI-4096</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>Francisco Soares</td></tr>
+
+</tbody>
+</table>
+</div>
+</details>
+
+<details open>
+<summary>Full Ticket List — Sprint 08 (82 tickets, sorted by SP desc)</summary>
+<div class="section-body table-scroll">
+<table id="tbl-full">
+<thead><tr><th>Issue Key</th><th>SPOC ID</th><th>Client</th><th>Subject</th><th>SPOC Status</th><th>JIRA Status</th><th>SP</th><th>Carry?</th><th>Priority</th><th>POC</th><th>Link</th></tr></thead>
+<tbody>
+<tr class=""><td>GOAPI-3601</td><td>SPOC20022026_00998</td><td>Home_Sweet_Sushi</td><td class="subj">Integração Uber Direct - Pedidos a Dinheiro</td><td>Tech Pending</td><td><span class="badge status-In-Progress">In Progress</span></td><td class="num">8</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3601" target="_blank">↗</a></td></tr>
+<tr class=""><td>ZBUN-1734</td><td>SPOC20052026_01542</td><td>DIG-IN_Geral</td><td class="subj">Validação e Enriquecimento Espanha & Alemanha</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">4</td><td>-</td><td>High</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1734" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3857</td><td>SPOC05052026_01432</td><td>Sushi_at_Home</td><td class="subj">Desenvolvimento App & Web</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">4</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3857" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3049</td><td>IMP00302</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-To-Do">To Do</span></td><td class="num">4</td><td>-</td><td>Low</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-done"><td>GOAPI-3766</td><td>SPOC09042026_01297</td><td>Sushi_In_the_House</td><td class="subj">Ativação de funcionalidades E-Goi - SITH</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">4</td><td>-</td><td>Highest</td><td>Clara Frazão</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3766" target="_blank">↗</a></td></tr>
+<tr class=""><td>ZBUN-1733</td><td>SPOC20052026_01541</td><td>DIG-IN_Geral</td><td class="subj">Enriquecimento de Dados Portugal (Turismo)</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">4</td><td>-</td><td>High</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1733" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3860</td><td>SPOC05052026_01429</td><td>Sushi_at_Home</td><td class="subj">Design / UI</td><td>Tech Pending</td><td><span class="badge status-QA">QA</span></td><td class="num">4</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3860" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-305</td><td>SPOC27042026_01363</td><td>SONAE_Sierra</td><td class="subj">Documentação detalha para API</td><td>Tech Pending</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">4</td><td>-</td><td>High</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/DATA-305" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-3977</td><td>SPOC22052026_01562</td><td>Brasa_em_Casa</td><td class="subj">Ativar funcionalidade de enviar email/notificações push a users com carrinhos abandonados</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">3</td><td>-</td><td>High</td><td>Clara Frazão</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3977" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-3973</td><td>SPOC21052026_01560</td><td>Sushi_In_the_House</td><td class="subj">Sincronização automática dos campos Last 15/30/90 days</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">3</td><td>-</td><td>High</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3973" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3605</td><td>SPOC19022026_00984</td><td>Home_Sweet_Sushi</td><td class="subj">Regra de oferta no checkout</td><td>Tech Pending</td><td><span class="badge status-QA">QA</span></td><td class="num">3</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3605" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3743</td><td>SPOC01042026_01249</td><td>We_enjoy_açaí</td><td class="subj">We Enjoy Açaí - Compilação da App (iOS + Android)</td><td>Tech Pending</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">3</td><td>-</td><td>Highest</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3743" target="_blank">↗</a></td></tr>
+<tr class=""><td>ZBUN-1766</td><td>SPOC24062026_01741</td><td>DIG-IN_Geral</td><td class="subj">Equipar Maestro com Skill para identificação e melhoria de logs</td><td>Tech Pending</td><td><span class="badge status-In-Progress">In Progress</span></td><td class="num">3</td><td>-</td><td>Medium</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1766" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-3926</td><td>SPOC13052026_01505</td><td>Home_Sweet_Sushi</td><td class="subj">Criar separador no BO para análise e exportação de interações por operador</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">3</td><td>-</td><td>High</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3926" target="_blank">↗</a></td></tr>
+<tr class=""><td>ZBUN-1736</td><td>SPOC20052026_01544</td><td>DIG-IN_Geral</td><td class="subj">Análise e Cobertura de Data Points NEXUS</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">3</td><td>-</td><td>Highest</td><td>Steven Murray</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1736" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-3223</td><td>IMP01056</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">3</td><td>-</td><td>High</td><td>Clara Frazão</td><td>-</td></tr>
+<tr class=""><td>GOAPI-3584</td><td>SPOC18022026_00974</td><td>Brasa_em_Casa</td><td class="subj">Desenvolvimento de App Móvel</td><td>Tech Pending</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">3</td><td>-</td><td>High</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3584" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3442</td><td>IMP01544</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">2</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class=""><td>GOAPI-3816</td><td>SPOC27042026_01364</td><td>Brasa_em_Casa</td><td class="subj">E-goi: Adicionar perfis só com números de telefone à sincronização automática</td><td>Tech Pending</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">2</td><td>-</td><td>Highest</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3816" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-3814</td><td>SPOC27042026_01366</td><td>Sushi_and_Poke</td><td class="subj">Confirmar se NIF está a passar corretamente para a Grubtech</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">2</td><td>-</td><td>Highest</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3814" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-364</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">2</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class="row-done"><td>GOAPI-3894</td><td>SPOC07052026_01472</td><td>Sushi_at_Home</td><td class="subj">Promocodes dão Como 30x usados ou deixam de funcionar</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">2</td><td>-</td><td>Highest</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3894" target="_blank">↗</a></td></tr>
+<tr class=""><td>ZBUN-1768</td><td>SPOC26062026_01758</td><td>DIG-IN_Geral</td><td class="subj">Integrar o EDGAR  em uma Knowledge Base</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">2</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1768" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-4076</td><td>SPOC23062026_01736</td><td>Home_Sweet_Sushi</td><td class="subj">Pedido entrou e não respeitou a antecedência</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">2</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4076" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-340</td><td>SPOC25052026_01570</td><td>DIG-IN_Geral</td><td class="subj">Melhorias nos Scrapers para Redes Sociais e Foodtech</td><td>Tech Pending</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">2</td><td>-</td><td>High</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/DATA-340" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3730</td><td>SPOC27032026_01222</td><td>Sushi_In_the_House</td><td class="subj">Desempenho do site em mobile muito baixo</td><td>Closed</td><td><span class="badge status-Canceled">Canceled</span></td><td class="num">2</td><td>-</td><td>High</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3730" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3877</td><td>SPOC05052026_01438</td><td>Sushi_at_Home</td><td class="subj">Desenvolvimento - Páginas individuais de produto + Top Sellers + favoritos</td><td>Closed</td><td><span class="badge status-QA">QA</span></td><td class="num">2</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3877" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3737</td><td>SPOC31032026_01244</td><td>DIG-IN_Geral</td><td class="subj">ZSROI: Sync de Ementa Digital não considera composição</td><td>Tech Pending</td><td><span class="badge status-QA">QA</span></td><td class="num">2</td><td>-</td><td>High</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3737" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-334</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class=""><td>ZBUN-1461</td><td>IMP01353</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-TO-PRODUCTION">TO PRODUCTION</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Clara Frazão</td><td>-</td></tr>
+<tr class=""><td>GOAPI-3899</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class=""><td>GOAPI-3929</td><td>SPOC13032026_01139</td><td>Sushi_and_Poke</td><td class="subj">Ativação Pagamentos Online </td><td>Tech Pending</td><td><span class="badge status-BIZ-PENDING">BIZ PENDING</span></td><td class="num">1</td><td>-</td><td>High</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3929" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-369</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class="row-done"><td>GOAPI-3772</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class=""><td>DATA-331</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class="row-done"><td>GOAPI-3834</td><td>SPOC29042026_01392</td><td>Sushi_at_Home</td><td class="subj">Sushi at Home - Produto Make Your Own</td><td>Closed</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3834" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-4090</td><td>SPOC25062026_01750</td><td>Brasa_em_Casa</td><td class="subj">Coaching 4.0 - Colocar ficha de projecto no footer do site</td><td>Closed</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Highest</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4090" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-368</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class=""><td>DATA-333</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class=""><td>DATA-371</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class="row-done"><td>ZBUN-1765</td><td>SPOC24062026_01740</td><td>DIG-IN_Geral</td><td class="subj">Scraper de Reviews e Imagens com problema de Sessões de Browser</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>High</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1765" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-4034</td><td>SPOC02062026_01642</td><td>Home_Sweet_Sushi</td><td class="subj">Alteração hora mudança de turno</td><td>Tech Pending</td><td><span class="badge status-In-Progress">In Progress</span></td><td class="num">1</td><td>-</td><td>High</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4034" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-4003</td><td>SPOC27052026_01598</td><td>Sushi_and_Poke</td><td class="subj">Mapeamento de métodos de pagamento do site para o POS</td><td>Closed</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>unassigned</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4003" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-4098</td><td>SPOC01072026_01776</td><td>Brasa_em_Casa</td><td class="subj">Pedido para o relatório de evidências no ambito do Coaching 4.0</td><td>Closed</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4098" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3861</td><td>SPOC05052026_01428</td><td>Sushi_at_Home</td><td class="subj">Discovery & Briefing</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3861" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-328</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class=""><td>DATA-329</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-QA">QA</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class=""><td>GOAPI-3221</td><td>SPOC08012026_00277</td><td>Home_Sweet_Sushi</td><td class="subj">Modifiers: contabilizar e faturar</td><td>Tech Pending</td><td><span class="badge status-TO-DESCRIBE">TO DESCRIBE</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3221" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3640</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td>-</td></tr>
+<tr class=""><td>DATA-370</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class="row-done"><td>GOAPI-4089</td><td>SPOC25062026_01752</td><td>Sushi_In_the_House</td><td class="subj">Coaching 4.0 - Adicionar ficha de projecto no footer do site</td><td>Tech Pending</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Highest</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4089" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-365</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class=""><td>ZBUN-1748</td><td>SPOC28052026_01604</td><td>DIG-IN_Geral</td><td class="subj">Análise ao SPOC</td><td>Tech Pending</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Highest</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1748" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-4088</td><td>SPOC25062026_01751</td><td>Funerária_Palhares</td><td class="subj">Coaching 4.0 - Colocar ficha de projecto no footer do site</td><td>Needs Support Action</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Highest</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4088" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3866</td><td>SPOC05052026_01452</td><td>Sushi_at_Home</td><td class="subj">Criação de Dashboard para o cliente conseguir seguir o desenvolvimento da App & Website</td><td>Tech Pending</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>High</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3866" target="_blank">↗</a></td></tr>
+<tr class=""><td>DATA-366</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class="row-done"><td>GOAPI-3596</td><td>SPOC23022026_01011</td><td>Home_Sweet_Sushi</td><td class="subj">Método de pagamento fechado mas continua a dar para registar por telefone</td><td>Closed</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Low</td><td>Clara Frazão</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3596" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3600</td><td>SPOC20022026_01002</td><td>Home_Sweet_Sushi</td><td class="subj"> Moradas no Checkout</td><td>Tech Pending</td><td><span class="badge status-In-Progress">In Progress</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3600" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-4050</td><td>SPOC02062026_01634</td><td>Sushi_and_Poke</td><td class="subj">configuração de horários, slots, impressão de pedidos</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4050" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3626</td><td>SPOC26022026_01041</td><td>Sushi_In_the_House</td><td class="subj">Manutenção Máquina</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3626" target="_blank">↗</a></td></tr>
+<tr class=""><td>ZBUN-1597</td><td>IMP01573</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td>-</td></tr>
+<tr class="row-done"><td>GOAPI-3975</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class=""><td>DATA-367</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-CODE-REVIEW">CODE REVIEW</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class=""><td>GOAPI-3923</td><td>SPOC30042026_01409</td><td>Home_Sweet_Sushi</td><td class="subj">Quantidade dos molhos não aparecem nos tickets</td><td>Tech Pending</td><td><span class="badge status-In-Progress">In Progress</span></td><td class="num">1</td><td>-</td><td>High</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3923" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-4091</td><td>SPOC30062026_01768</td><td>DIG-IN_Geral</td><td class="subj">Update Pagamentos &lt;&gt; Verificação de todos os Clientes</td><td>Needs Support Action</td><td><span class="badge status-Canceled">Canceled</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4091" target="_blank">↗</a></td></tr>
+<tr class="row-done"><td>GOAPI-3892</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Done">Done</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class=""><td>GOAPI-4082</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class=""><td>GOAPI-4072</td><td>SPOC21062026_01722</td><td>Home_Sweet_Sushi</td><td class="subj">Fazer manutenção às máquinas de HSS</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-4072" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3905</td><td>SPOC06052026_01465</td><td>Funerária_Palhares</td><td class="subj">Coaching 4.0 - Melhorias técnicas e estruturais no website existente</td><td>Tech Pending</td><td><span class="badge status-In-Progress">In Progress</span></td><td class="num">1</td><td>-</td><td>Highest</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3905" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3667</td><td>SPOC16032026_01148</td><td>DIG-IN_Geral</td><td class="subj">Criar coluna no BO com data de criação de Códigos Promocionais</td><td>Tech Pending</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td><a href="https://zmt.atlassian.net/browse/GOAPI-3667" target="_blank">↗</a></td></tr>
+<tr class=""><td>GOAPI-3517</td><td>IMP01672</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">1</td><td>-</td><td>Medium</td><td>Ruben</td><td>-</td></tr>
+<tr class="row-warn"><td>GOAPI-4095</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>GOAPI-4061</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Canceled">Canceled</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>ZBUN-1750</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>GOAPI-4047</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Paulo Lima</td><td>-</td></tr>
+<tr class="row-warn"><td>GOAPI-3991</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Escalated">Escalated</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>GOAPI-4093</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>DATA-344</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>unassigned</td><td>-</td></tr>
+<tr class="row-warn"><td>GOAPI-4083</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>DATA-319</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>GOAPI-4096</td><td>-</td><td>-</td><td class="subj">-</td><td>-</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Medium</td><td>Francisco Soares</td><td>-</td></tr>
+<tr class="row-warn"><td>ZBUN-1767</td><td>SPOC24062026_01742</td><td>DIG-IN_Geral</td><td class="subj">Heineken brands delivery - New data points and scrapers</td><td>Tech Pending</td><td><span class="badge status-Open">Open</span></td><td class="num">0 ⚠️</td><td>-</td><td>Highest</td><td>Francisco Soares</td><td><a href="https://zmt.atlassian.net/browse/ZBUN-1767" target="_blank">↗</a></td></tr>
+
+</tbody>
+</table>
+</div>
+</details>
+
+<details open>
+<summary>Próximo Sprint Pulse</summary>
+<div class="section-body">
+  <div class="cards" style="margin-bottom:0;">
+    <div class="card"><div class="label">Total Próximo Sprint</div><div class="value">7</div></div>
+    <div class="card"><div class="label">Estimated</div><div class="value green">7</div></div>
+    <div class="card"><div class="label">Needs Estimate</div><div class="value">0</div></div>
+  </div>
+</div>
+</details>
+
+<footer>SPOC Sprint Health &middot; Data: JIRA SPOC + SPOC tables (SPOC Hub 2.0) &middot; sprint membership by JIRA Sprint field</footer>
+</div>
+
+<script>
+function toggleTheme() {
+  const root = document.documentElement;
+  const cur = root.getAttribute('data-theme');
+  root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+}
+(function(){
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'dark');
+})();
+
+document.querySelectorAll('table').forEach(function(table) {
+  const headers = table.querySelectorAll('th');
+  headers.forEach(function(th, idx) {
+    th.addEventListener('click', function() {
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const asc = th.getAttribute('data-asc') !== 'true';
+      headers.forEach(h => h.removeAttribute('data-asc'));
+      th.setAttribute('data-asc', asc);
+      rows.sort(function(a, b) {
+        let av = a.children[idx].innerText.trim();
+        let bv = b.children[idx].innerText.trim();
+        const an = parseFloat(av.replace(/[^0-9.\-]/g, ''));
+        const bn = parseFloat(bv.replace(/[^0-9.\-]/g, ''));
+        if (!isNaN(an) && !isNaN(bn) && /^[\d.\-\s%⚠️]*$/.test(av)) {
+          return asc ? an - bn : bn - an;
+        }
+        return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+});
+</script>
+</body>
+</html>

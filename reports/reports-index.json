@@ -1,0 +1,62 @@
+[
+  {
+    "name": "slack-mention-backlog-tech-group",
+    "file": "reports/slack-mention-backlog-tech-group.html",
+    "title": "Tech Group (@tech) — Slack Backlog",
+    "mtime": "2026-07-07T17:16:27.294235"
+  },
+  {
+    "name": "spoc-sprint-report-2026-07-07",
+    "file": "reports/spoc-sprint-report-2026-07-07.html",
+    "title": "SPOC Sprint Health — Sprint 08",
+    "mtime": "2026-07-07T17:07:40.764897"
+  },
+  {
+    "name": "spoc-sprint-report-2026-06-30",
+    "file": "reports/spoc-sprint-report-2026-06-30.html",
+    "title": "SPOC Sprint Health — Sprint 07 | 15jun-29jun",
+    "mtime": "2026-06-30T10:31:32.128708"
+  },
+  {
+    "name": "spoc-triage-2026-06-29",
+    "file": "reports/spoc-triage-2026-06-29.html",
+    "title": "SPOC Tech Triage — Backup System Crisis | 2026-06-29",
+    "mtime": "2026-06-29T12:09:21.348581"
+  },
+  {
+    "name": "spoc-triage",
+    "file": "reports/spoc-triage.html",
+    "title": "SPOC Tech Triage — GOAPI-Sprint 07 | 26jun",
+    "mtime": "2026-06-26T10:15:29.048873"
+  },
+  {
+    "name": "spoc-sprint-report",
+    "file": "reports/spoc-sprint-report.html",
+    "title": "SPOC Sprint Health — Sprint 07",
+    "mtime": "2026-06-24T11:14:42.921009"
+  },
+  {
+    "name": "slack-mention-backlog",
+    "file": "reports/slack-mention-backlog.html",
+    "title": "Slack Mention Backlog",
+    "mtime": "2026-06-23T13:10:30.179479"
+  },
+  {
+    "name": "spoc-client-casavostra-2026-06-23",
+    "file": "reports/spoc-client-casavostra-2026-06-23.html",
+    "title": "SPOC Report: Casavostra | 2026-06-23",
+    "mtime": "2026-06-23T11:31:40.175381"
+  },
+  {
+    "name": "hss-meeting-report",
+    "file": "reports/hss-meeting-report.html",
+    "title": "Home Sweet Sushi — Reunião de Acompanhamento | 09 jun 2026",
+    "mtime": "2026-06-09T12:51:55.499193"
+  },
+  {
+    "name": "spoc-report",
+    "file": "reports/spoc-report.html",
+    "title": "SPOC Backlog Health Report",
+    "mtime": "2026-06-05T22:26:21.523593"
+  }
+]

@@ -1,0 +1,726 @@
+[
+  {
+    "session_id": "ae2dd9cc-96af-469d-bb89-309760c0ca93",
+    "name": "",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-05T20:14:54+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-05T20:15:28+01:00"
+  },
+  {
+    "session_id": "d0ac1332-1857-4578-94c9-1815a24574f9",
+    "name": "l2-l3-reviews-images-analysis",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/.worktrees/feature-DATA-216-DATA-303-l2-l3-enrichment-spec",
+    "last_active": "2026-06-06T12:35:53+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "test-456",
+    "name": "",
+    "cwd": "/tmp",
+    "last_active": "2026-06-06T18:47:19+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "final-test-1",
+    "name": "",
+    "cwd": "/home/test",
+    "last_active": "2026-06-06T18:50:44+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-06T18:50:50+01:00"
+  },
+  {
+    "session_id": "test-fix2",
+    "name": "",
+    "cwd": "/tmp",
+    "last_active": "2026-06-06T19:03:28+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "5be7466c-c9aa-4011-a049-14a5ba5a503d",
+    "name": "skills-dashboard",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-06T19:25:12+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "b9a7d9d2-1e92-4ffa-86e8-a9e61bf4e8c5",
+    "name": "",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-06T19:56:41+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "834cb135-94fb-46ae-ae27-eb4eb54d3d0d",
+    "name": "",
+    "cwd": "/home/snake/fbsoares/PublicContracts",
+    "last_active": "2026-06-07T00:44:21+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-07T00:46:26+01:00"
+  },
+  {
+    "session_id": "00a20a5e-8594-459c-a558-3337cc64727f",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-06-08T16:16:00+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-08T16:19:52+01:00"
+  },
+  {
+    "session_id": "9c8761c4-00d6-4715-ba4f-bd838b7224f2",
+    "name": "reconfig-claude",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-09T12:55:31+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-09T12:55:41+01:00"
+  },
+  {
+    "session_id": "d6419625-1eed-430c-8128-f5dab2fb7b9e",
+    "name": "spoc-backlog-health",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-09T13:05:34+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-09T13:13:17+01:00"
+  },
+  {
+    "session_id": "f206a044-a3b5-4178-a575-994c92699656",
+    "name": "claude-operative-system",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-09T14:43:07+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-09T14:48:22+01:00"
+  },
+  {
+    "session_id": "e1d5029f-6f10-4b64-aab6-31721061b437",
+    "name": "orchaistra-gramado",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-06-10T16:39:12+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-10T16:39:19+01:00"
+  },
+  {
+    "session_id": "fc91c2d9-e6c2-42a4-9a11-b0410e1b9d88",
+    "name": "dashboard-with-agents-architecture",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-10T22:01:12+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-10T22:44:54+01:00"
+  },
+  {
+    "session_id": "031692cc-4544-4771-8e0e-3e2a1660d38d",
+    "name": "dashboard-maintenance",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-11T17:12:24+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-11T17:14:17+01:00"
+  },
+  {
+    "session_id": "c50f9504-8b3a-4793-b852-bb0fab77fd18",
+    "name": "orchaistra-phase4-DATA-332",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-06-11T17:25:12+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_019MWZhFaZarDwafwNQbr8yU",
+    "ended": "2026-06-11T17:25:59+01:00"
+  },
+  {
+    "session_id": "1c5b4e6f-2388-4b38-a5c4-75f1e024d623",
+    "name": "sonae-meeting1-prep",
+    "cwd": "/home/snake/Desktop/Sonae",
+    "last_active": "2026-06-11T17:35:50+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01Q4oZjPtrLby3WJPp48yxVM",
+    "ended": "2026-06-11T17:36:55+01:00"
+  },
+  {
+    "session_id": "e5f20b16-1986-450e-9d44-debfa55b26d9",
+    "name": "orchaistra-gramado-thefork",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-06-12T17:11:26+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-12T17:11:32+01:00"
+  },
+  {
+    "session_id": "f8304e5a-e56d-45f9-89ad-39d36d200226",
+    "name": "DATA-351-refine-supabase-discovery-and-enrichment",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-06-15T11:39:22+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "13e620fc-1070-4af4-bdbd-093f53f43c28",
+    "name": "export-data-supabase",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/NexusWorkflow",
+    "last_active": "2026-06-15T13:27:40+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-15T13:28:44+01:00"
+  },
+  {
+    "session_id": "79a69cad-40b1-43f8-895a-7e0f11b5ae79",
+    "name": "GOAPI-3861-discovery",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-15T21:02:11+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-15T21:02:37+01:00"
+  },
+  {
+    "session_id": "41192c99-5981-4918-bdb7-d59f1eac2abe",
+    "name": "new-enterprise-agent",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-16T12:38:10+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-16T12:38:19+01:00"
+  },
+  {
+    "session_id": "5e7d29e9-9362-4617-bf06-f946ed5a6f9e",
+    "name": "GOAPI-3605-Regra-oferta-checkout",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro/projects/frontend/gopress",
+    "last_active": "2026-06-16T12:56:42+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-16T12:57:22+01:00"
+  },
+  {
+    "session_id": "558fbe93-7ea8-4b6c-8440-db066a51bc98",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-16T15:44:52+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-16T15:45:42+01:00"
+  },
+  {
+    "session_id": "e0d03aa2-f13c-4127-bb36-cae51455984e",
+    "name": "GOAPI-3923-modifiers-printing",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro/projects/core/go-api/.worktrees/feature-GOAPI-3923-modifiers-printing",
+    "last_active": "2026-06-16T17:33:37+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-16T17:34:33+01:00"
+  },
+  {
+    "session_id": "19a75dd5-8b87-4f2a-b38b-05b7d910897e",
+    "name": "spoc-processes",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-17T15:29:21+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-17T15:29:27+01:00"
+  },
+  {
+    "session_id": "9f6962db-809d-40d5-9ab4-546fcf821eee",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-19T15:38:00+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-19T15:40:23+01:00"
+  },
+  {
+    "session_id": "ae238355-f0e9-4610-964b-f2eade6f62b6",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-19T17:21:33+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-19T17:28:00+01:00"
+  },
+  {
+    "session_id": "5dee258a-d7f7-41d3-ad98-2b352e5ecfdc",
+    "name": "DATA-373-pricing-on-google",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/NexusWorkflow/exports",
+    "last_active": "2026-06-20T19:34:54+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01YHkMD2vpPwsSkxohN36LKo",
+    "ended": "2026-06-20T19:35:11+01:00"
+  },
+  {
+    "session_id": "62ffe889-a624-4ca1-92c5-02b68fa7a012",
+    "name": "claude-operative-system",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-22T14:05:28+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01ML7wdj9WwAqRmdXPgRPeWp",
+    "ended": "2026-06-22T14:15:01+01:00"
+  },
+  {
+    "session_id": "586c07d3-6254-4525-9357-e98a8eec2dbe",
+    "name": "GOAPI-4006-SDR",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro/projects/core/go-api/.worktrees/feature-GOAPI-4006-sdr-pos-communication",
+    "last_active": "2026-06-22T14:19:36+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01HdMejqCstTAHpG8UnnR6zf",
+    "ended": "2026-06-22T14:20:03+01:00"
+  },
+  {
+    "session_id": "62bd3940-9bdf-4978-b78a-b721c2296547",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-22T17:56:21+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-22T17:59:25+01:00"
+  },
+  {
+    "session_id": "38f7d669-29b1-46ad-bac7-84867e5e254e",
+    "name": "",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-22T18:08:12+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-22T18:08:46+01:00"
+  },
+  {
+    "session_id": "d79f83b7-b675-4609-b115-e6bc56f5963e",
+    "name": "",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-22T18:11:54+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-22T18:12:39+01:00"
+  },
+  {
+    "session_id": "910447ab-4f3c-463c-9547-ed66e2285c8f",
+    "name": "new-enterprise-agent",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-23T10:56:28+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01LwNCc2reWvdssPvRwPNk3G",
+    "ended": "2026-06-23T10:56:49+01:00"
+  },
+  {
+    "session_id": "272ebf0b-e393-4073-b5f5-1e7c499ee4ac",
+    "name": "new-enterprise-skills",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-23T11:28:58+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-23T11:31:50+01:00"
+  },
+  {
+    "session_id": "6852b5d7-d297-4058-94ee-01677124957c",
+    "name": "ZAPP-1804-book-soltroia",
+    "cwd": "/home/snake/Outdare/git/api/book",
+    "last_active": "2026-06-23T14:59:26+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01NKKMs4srgPMk4oYqSrtU26",
+    "ended": "2026-06-23T14:59:36+01:00"
+  },
+  {
+    "session_id": "8698deb8-2a2c-4866-8f97-0a485e384c8b",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro",
+    "last_active": "2026-06-23T17:44:59+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "0d42832b-7e07-41f0-99c7-0b30296d042b",
+    "name": "",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-24T11:21:12+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "b63aec0a-fa11-475f-8662-b0ea654679e4",
+    "name": "new-enterprise-skills",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-24T11:55:05+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01MVRSbooDg1rzavbby3BYGM",
+    "ended": "2026-06-24T12:01:09+01:00"
+  },
+  {
+    "session_id": "23d19a67-a672-4d10-ae65-88097ff3cb62",
+    "name": "GOAPI-4006-SDR",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro",
+    "last_active": "2026-06-24T12:29:43+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-24T12:32:42+01:00"
+  },
+  {
+    "session_id": "9b8ea526-77e8-4d35-b53a-28c8739e2367",
+    "name": "dev-mr-analysis",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-26T09:48:10+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-26T09:49:29+01:00"
+  },
+  {
+    "session_id": "32cdc9a3-cd54-4d79-8828-2655579fb703",
+    "name": "slack-backlog",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-26T10:07:42+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_012uSx7WtY54p7BgnhJ7ZQPi",
+    "ended": "2026-06-26T10:26:34+01:00"
+  },
+  {
+    "session_id": "e54dacf7-59c1-46cc-acf2-9956b6741459",
+    "name": "ai-hackathon",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-26T10:51:29+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-26T11:11:47+01:00"
+  },
+  {
+    "session_id": "b300189d-d4ee-4d41-be49-881a0c69a01c",
+    "name": "spoc-triage",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-26T15:42:32+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "1f7393e0-92b8-4236-9a04-cef0b2adeac5",
+    "name": "GOAPI-3870-sushiathome-staging",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro",
+    "last_active": "2026-06-26T18:04:37+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01BdPmzaxjLTfGeMACpDAzRj",
+    "ended": "2026-06-26T18:04:41+01:00"
+  },
+  {
+    "session_id": "cac5988f-c894-4085-aa96-8a91d96a770b",
+    "name": "",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-06-28T13:34:45+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_011ZdTjib4AssSnFYGvLxNh2",
+    "ended": "2026-06-28T13:35:01+01:00"
+  },
+  {
+    "session_id": "99ca4b17-5dc0-4d62-9d8c-4c0d4d560d74",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-29T12:16:12+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-29T12:16:19+01:00"
+  },
+  {
+    "session_id": "583fed83-a77a-415c-aef9-1a539d0b5e59",
+    "name": "steven-enterprise-agent",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-29T13:47:04+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01BuDm58vYVhCooM1nq7WiXZ",
+    "ended": "2026-06-29T13:48:21+01:00"
+  },
+  {
+    "session_id": "da854581-22b9-4bfa-8fb5-93c749c2e7f5",
+    "name": "new-create-spoc-skill",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-29T13:48:48+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-29T13:49:37+01:00"
+  },
+  {
+    "session_id": "d1b43bc9-5857-4bf1-a7c4-1aabda52d13f",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro/projects/sites/sushi-at-home",
+    "last_active": "2026-06-29T14:49:45+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-29T14:49:50+01:00"
+  },
+  {
+    "session_id": "709d3961-2afd-4760-b321-f0885f562f64",
+    "name": "GOAPI-3870-sushiathome-staging",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro",
+    "last_active": "2026-06-29T15:11:31+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-29T15:46:33+01:00"
+  },
+  {
+    "session_id": "d7f3e802-a101-4de7-8eee-363bf0070af4",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro/projects/sites/sushi-at-home",
+    "last_active": "2026-06-29T15:52:27+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-29T15:53:09+01:00"
+  },
+  {
+    "session_id": "27ffa466-6016-4746-8887-489c7cb3999c",
+    "name": "ZBUN-1761-backups-automaticos",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-29T16:36:26+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-29T18:22:11+01:00"
+  },
+  {
+    "session_id": "59f0f0d4-7b32-42ed-85c4-e39182374c3d",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-30T10:12:20+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-30T10:15:54+01:00"
+  },
+  {
+    "session_id": "fd9049d4-a673-4496-9f3a-ff00b98f5447",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-06-30T12:30:17+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-30T12:38:58+01:00"
+  },
+  {
+    "session_id": "ffb3fe06-50f5-4537-9e23-075835b58d2f",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro/projects/core/go-api/.worktrees/feature-GOAPI-4006-sdr-pos-communication",
+    "last_active": "2026-06-30T16:09:32+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-06-30T16:09:55+01:00"
+  },
+  {
+    "session_id": "ee7792fb-6e01-4466-810a-2307ccfdfc7a",
+    "name": "ZBUN-1765-reviews-images-scraper-improv",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/projects/scrapers/scraper-gdetails/.worktrees/fix-ZBUN-1765-chrome-orphan-process-group-kill",
+    "last_active": "2026-06-30T17:12:27+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01TCXvjXrGjbjpT7WNjrH17d",
+    "ended": "2026-06-30T17:12:40+01:00"
+  },
+  {
+    "session_id": "95dfdbc6-d26e-4895-ae08-9702e00c2612",
+    "name": "ZBUN-1771-pt-status-update",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-06-30T17:16:54+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "fb150192-0cc2-490e-a672-ec0435181455",
+    "name": "ZBUN-1777-image-scraper-url-fix",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/projects/scrapers/scraper-gdetails/.worktrees/fix-ZBUN-1777-save-photo-maps-url",
+    "last_active": "2026-07-01T11:52:48+01:00",
+    "active": true,
+    "rc_url": null
+  },
+  {
+    "session_id": "16541a2a-d97b-4f7a-8977-8eef33b169a5",
+    "name": "ZBUN-1767-heineken-brand-data-points-and-scrapers",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-01T12:29:56+01:00",
+    "active": true,
+    "rc_url": "https://claude.ai/code/session_01N9hrWBoJA2AQGWi2wfZbKm"
+  },
+  {
+    "session_id": "91f062e7-f965-4b2c-9b14-bb67a76c2c37",
+    "name": "ZBUN-1778-paths-fix",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/.worktrees/fix-ZBUN-1778",
+    "last_active": "2026-07-01T15:22:31+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-01T15:22:40+01:00"
+  },
+  {
+    "session_id": "19efaef4-7af3-4f40-bb6e-77ced2fc73d3",
+    "name": "ZBUN-1778-paths-fix",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-01T18:03:49+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-01T18:03:54+01:00"
+  },
+  {
+    "session_id": "bf00ba34-2f5c-4db0-b3ee-3495a48c8d5e",
+    "name": "ZBUN-1771-q1-status-test",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-01T18:40:07+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-01T18:43:59+01:00"
+  },
+  {
+    "session_id": "b560977d-3f39-4a1b-a703-23ee2096f7a2",
+    "name": "ZBUN-1771-pt-status-update",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-02T11:22:14+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01Bix1e1yFVyBv6p53w4BZUv",
+    "ended": "2026-07-02T11:22:47+01:00"
+  },
+  {
+    "session_id": "d22b6710-fd0b-460f-88d5-340f6e7546f6",
+    "name": "ZBUN-1771-q1-status-test",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/projects/scrapers/scraper-gdetails",
+    "last_active": "2026-07-02T11:55:56+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-02T12:23:28+01:00"
+  },
+  {
+    "session_id": "e0c73a46-61b6-436a-88e1-6253c2cc5188",
+    "name": "ZBUN-1776-image-recognition",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-02T13:54:29+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-02T13:57:11+01:00"
+  },
+  {
+    "session_id": "1047d7b2-8c74-4806-bcb2-186cf8f304a8",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-07-02T14:32:21+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-02T14:32:56+01:00"
+  },
+  {
+    "session_id": "cc8f4461-bfd3-4a96-b2ea-13c37b453bc6",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/.worktrees/feature-ZBUN-1776-image-recognition-test-run",
+    "last_active": "2026-07-02T18:33:06+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-02T18:35:07+01:00"
+  },
+  {
+    "session_id": "9c040802-caab-44f7-ac3b-0c2f301e92b1",
+    "name": "ZBUN-1776-test-run",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/.worktrees/feature-ZBUN-1776-image-recognition-test-run",
+    "last_active": "2026-07-03T12:21:13+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01L2RJ4ZHGTxfB1nnjeKRBir",
+    "ended": "2026-07-03T12:31:26+01:00"
+  },
+  {
+    "session_id": "9a48ae65-0f48-461c-a434-8d4021ca35df",
+    "name": "ZBUN-1776-spec-review",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-03T14:14:20+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-03T14:15:21+01:00"
+  },
+  {
+    "session_id": "33377e3b-a7fe-4c24-aca3-5e592f048ead",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-03T16:03:27+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-03T16:05:17+01:00"
+  },
+  {
+    "session_id": "3fbad298-6b51-448e-8468-9ae58ff1262d",
+    "name": "ZBUN-1776-test-run",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/.worktrees/feature-ZBUN-1776-image-recognition-test-run",
+    "last_active": "2026-07-03T16:29:49+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-03T16:31:04+01:00"
+  },
+  {
+    "session_id": "57ba2ae0-b69f-49ed-b75c-ba0c656f980a",
+    "name": "ZBUN-1776-deploy-local-hardware",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-06T12:07:20+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_0159u4vbeoteygaEEKCJKfoZ",
+    "ended": "2026-07-06T12:07:49+01:00"
+  },
+  {
+    "session_id": "246be95b-e710-4c98-9a14-9ca02ae9e97c",
+    "name": "ZBUN-1776-image-recog-review",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra/.worktrees/feature-ZBUN-1776-image-recognition-test-run/scripts",
+    "last_active": "2026-07-06T16:39:26+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-06T16:41:07+01:00"
+  },
+  {
+    "session_id": "e6624210-46b9-4159-be81-ad95eb79f225",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-07-07T13:14:30+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-07T13:14:39+01:00"
+  },
+  {
+    "session_id": "7f034fc2-c39e-43fe-9389-6677c7e0d7da",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-07-07T16:46:22+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-07T16:47:20+01:00"
+  },
+  {
+    "session_id": "43eea80b-a44f-46b1-84b8-b367ca27d0ef",
+    "name": "",
+    "cwd": "/home/snake/Outdare/git/erp/enterprise-agent",
+    "last_active": "2026-07-07T17:03:42+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-07T17:16:38+01:00"
+  },
+  {
+    "session_id": "82804b51-cb4a-4235-8d3d-c8ceda1c67fe",
+    "name": "7jul-report-adriana",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro",
+    "last_active": "2026-07-07T17:55:57+01:00",
+    "active": false,
+    "rc_url": "https://claude.ai/code/session_01SQxz1yWe35gppoRaiCtRZA",
+    "ended": "2026-07-07T17:59:51+01:00"
+  },
+  {
+    "session_id": "e2c2ef79-0282-4d92-adee-ffffc1a2a741",
+    "name": "ZBUN-1776-image-recog-review",
+    "cwd": "/home/snake/Outdare/git/data/nexus/OrchAIstra",
+    "last_active": "2026-07-07T21:09:22+01:00",
+    "active": false,
+    "rc_url": null,
+    "ended": "2026-07-07T21:09:45+01:00"
+  },
+  {
+    "session_id": "b7ca2c1b-f7fa-48c0-9fe2-f9820efa3425",
+    "name": "personal-dashboard-refactor",
+    "cwd": "/home/snake/fbsoares/Dashboard",
+    "last_active": "2026-07-07T22:03:50+01:00",
+    "active": true,
+    "rc_url": "https://claude.ai/code/session_01GxKUtvb84N978LP8wqQyM4"
+  },
+  {
+    "session_id": "8436a4fe-36dc-42a2-854f-8b9a97e0ca07",
+    "name": "GOAPI-3857-sushiathome-app",
+    "cwd": "/home/snake/Outdare/git/digin-framework/maestro",
+    "last_active": "2026-07-07T23:15:18+01:00",
+    "active": true,
+    "rc_url": "https://claude.ai/code/session_01DrtGH9TdcmdPWS7rXVZJAd"
+  }
+]

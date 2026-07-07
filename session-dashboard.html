@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sessions</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0d0f12;
+  --surface: #13161b;
+  --surface2: #1a1e25;
+  --surface3: #1f242d;
+  --border: rgba(255,255,255,0.06);
+  --border-hover: rgba(255,255,255,0.12);
+  --text: #e8eaf0;
+  --muted: #5a6070;
+  --muted2: #3d4455;
+  --active: #06b6d4;
+  --active-glow: rgba(6,182,212,0.15);
+  --rc: #a78bfa;
+  --rc-glow: rgba(167,139,250,0.15);
+  --ended: #3d4455;
+  --accent-ctx-low: #34d399;
+  --accent-ctx-mid: #f59e0b;
+  --accent-ctx-high: #f43f5e;
+}
+
+html, body { width: 100%; min-height: 100%; background: var(--bg); color: var(--text); font-family: 'Outfit', sans-serif; }
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
+}
+
+.shell {
+  position: relative; z-index: 1;
+  max-width: 1200px; margin: 0 auto;
+  padding: 32px 40px 60px;
+}
+
+/* HEADER */
+header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  margin-bottom: 36px;
+  animation: fadeUp 0.5s ease both;
+}
+
+.header-left h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 2.4rem; font-weight: 400;
+  line-height: 1;
+}
+
+.header-left .sub {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem; color: var(--muted);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.header-right {
+  display: flex; align-items: center; gap: 16px;
+}
+
+.back-link {
+  font-family: 'DM Mono', monospace; font-size: 0.72rem;
+  color: var(--muted); text-decoration: none;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 12px; transition: color 0.15s, border-color 0.15s;
+}
+.back-link:hover { color: var(--text); border-color: var(--border-hover); }
+
+.refresh-btn {
+  font-family: 'DM Mono', monospace; font-size: 0.72rem;
+  color: var(--muted); background: none; border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 12px; cursor: pointer;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  transition: color 0.15s, border-color 0.15s;
+}
+.refresh-btn:hover { color: var(--text); border-color: var(--border-hover); }
+
+.gen-time {
+  font-family: 'DM Mono', monospace; font-size: 0.65rem;
+  color: var(--muted2);
+}
+
+/* FILTERS */
+.filters {
+  display: flex; gap: 8px; margin-bottom: 24px;
+  flex-wrap: wrap;
+  animation: fadeUp 0.5s 0.05s ease both;
+}
+
+.filter-btn {
+  font-family: 'DM Mono', monospace; font-size: 0.65rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); border-radius: 6px; padding: 4px 12px;
+  cursor: pointer; transition: all 0.15s;
+}
+.filter-btn.on { color: var(--active); border-color: rgba(6,182,212,0.4); background: rgba(6,182,212,0.06); }
+.filter-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+/* STATS ROW */
+.stats-row {
+  display: flex; gap: 16px; margin-bottom: 28px; flex-wrap: wrap;
+  animation: fadeUp 0.5s 0.08s ease both;
+}
+
+.stat-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 16px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.stat-chip .val {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.5rem; line-height: 1;
+}
+.stat-chip .lbl {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem;
+  color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+}
+.stat-chip.active .val { color: var(--active); }
+.stat-chip.rc .val { color: var(--rc); }
+
+/* SESSION LIST */
+.session-list {
+  display: flex; flex-direction: column; gap: 10px;
+  animation: fadeUp 0.5s 0.12s ease both;
+}
+
+.session-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  gap: 0 16px;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative; overflow: hidden;
+}
+.session-card:hover { border-color: var(--border-hover); background: var(--surface2); }
+
+.session-card.is-active {
+  border-color: rgba(6,182,212,0.25);
+  box-shadow: 0 0 20px rgba(6,182,212,0.06);
+}
+.session-card.is-active:hover { border-color: rgba(6,182,212,0.45); }
+
+.session-card.has-rc {
+  border-color: rgba(167,139,250,0.2);
+  box-shadow: 0 0 20px rgba(167,139,250,0.05);
+}
+.session-card.is-active.has-rc {
+  border-color: rgba(167,139,250,0.3);
+  box-shadow: 0 0 24px rgba(167,139,250,0.1), 0 0 12px rgba(6,182,212,0.06);
+}
+
+/* Status indicator column */
+.card-indicator {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  display: flex; align-items: flex-start;
+  padding-top: 3px;
+}
+
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--active);
+  box-shadow: 0 0 8px var(--active);
+  animation: pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.ended-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ended); flex-shrink: 0; opacity: 0.5;
+}
+
+/* Main content */
+.card-main { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; gap: 6px; }
+.card-actions { grid-column: 3; grid-row: 1; display: flex; align-items: flex-start; gap: 8px; }
+.card-meta { grid-column: 2 / 4; grid-row: 2; }
+
+/* Top row: name + tags */
+.card-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.session-name {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.9rem; font-weight: 500;
+  color: var(--text);
+}
+.session-name.unnamed { color: var(--muted); font-style: italic; }
+
+.tag {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  border-radius: 4px; padding: 1px 6px;
+}
+.tag.active { color: var(--active); border: 1px solid rgba(6,182,212,0.3); background: rgba(6,182,212,0.06); }
+.tag.ended { color: var(--muted); border: 1px solid var(--muted2); background: transparent; opacity: 0.6; }
+
+/* CWD row */
+.card-cwd {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 600px;
+}
+
+/* Last prompt */
+.card-prompt {
+  font-family: 'Outfit', sans-serif; font-size: 0.78rem;
+  color: var(--muted); font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 560px; margin-top: 2px;
+}
+.card-prompt::before { content: '"'; }
+.card-prompt::after { content: '"'; }
+
+/* Meta row: branch, model, time, ctx */
+.card-meta {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 10px; flex-wrap: wrap;
+}
+
+.meta-item {
+  font-family: 'DM Mono', monospace; font-size: 0.62rem;
+  color: var(--muted2); display: flex; align-items: center; gap: 4px;
+}
+.meta-item .ico { opacity: 0.7; font-size: 0.65rem; }
+
+.ctx-bar-wrap {
+  display: flex; align-items: center; gap: 6px;
+}
+.ctx-bar {
+  width: 60px; height: 4px; background: var(--muted2);
+  border-radius: 2px; overflow: hidden;
+}
+.ctx-bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.ctx-bar-fill.low  { background: var(--accent-ctx-low); }
+.ctx-bar-fill.mid  { background: var(--accent-ctx-mid); }
+.ctx-bar-fill.high { background: var(--accent-ctx-high); }
+
+/* Resume button */
+.resume-btn {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  color: var(--muted); background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 10px;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.resume-btn:hover { color: var(--text); border-color: var(--border-hover); }
+.resume-btn.copied { color: var(--accent-ctx-low); border-color: rgba(52,211,153,0.4); }
+
+/* Search */
+.search-input {
+  font-family: 'DM Mono', monospace; font-size: 0.65rem;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); border-radius: 6px; padding: 4px 12px;
+  outline: none; transition: border-color 0.15s; width: 200px;
+}
+.search-input:focus { border-color: var(--border-hover); }
+.search-input::placeholder { color: var(--muted2); }
+
+/* Actions */
+.rc-link {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  color: var(--rc); text-decoration: none;
+  border: 1px solid rgba(167,139,250,0.35);
+  border-radius: 6px; padding: 4px 10px;
+  transition: all 0.15s; white-space: nowrap;
+  display: flex; align-items: center; gap: 4px;
+}
+.rc-link:hover { background: rgba(167,139,250,0.1); border-color: var(--rc); }
+
+.session-id-chip {
+  font-family: 'DM Mono', monospace; font-size: 0.6rem;
+  color: var(--muted2); padding: 4px 8px;
+  border: 1px solid transparent;
+  cursor: default;
+}
+
+/* Empty state */
+.empty {
+  text-align: center; padding: 60px 20px;
+  font-family: 'DM Mono', monospace; font-size: 0.8rem;
+  color: var(--muted);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="header-left">
+      <h1>Sessions</h1>
+      <div class="sub" id="gen-time">loading…</div>
+    </div>
+    <div class="header-right">
+      <span class="gen-time" id="rebuild-hint"></span>
+      <a class="back-link" href="https://claude.ai/new#settings/usage" target="_blank">Check Usage ↗</a>
+      <button class="refresh-btn" onclick="load()">↻ Refresh</button>
+      <a class="back-link" href="dashboard.html">← Dashboard</a>
+    </div>
+  </header>
+
+  <div class="stats-row" id="stats-row"></div>
+
+  <div class="filters" id="filters">
+    <button class="filter-btn on" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="active">Active</button>
+    <button class="filter-btn" data-filter="rc">Remote Control</button>
+    <button class="filter-btn" data-filter="ended">Ended</button>
+    <input class="search-input" id="search-input" placeholder="filter by keyword…" autocomplete="off">
+  </div>
+
+  <div class="session-list" id="session-list">
+    <div class="empty">Loading sessions…</div>
+  </div>
+</div>
+
+<script>
+let allSessions = [];
+let activeFilter = 'all';
+let activeQuery = '';
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function ctxClass(pct) {
+  if (pct < 50) return 'low';
+  if (pct < 80) return 'mid';
+  return 'high';
+}
+
+function relTime(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  const d = Math.floor(h / 24);
+  return d + 'd ago';
+}
+
+function duration(first, last) {
+  if (!first || !last) return '';
+  const ms = new Date(last) - new Date(first);
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (h === 0) return m + 'm';
+  return h + 'h ' + m + 'm';
+}
+
+function shortModel(m) {
+  if (!m) return '';
+  if (m.includes('opus')) return 'opus';
+  if (m.includes('sonnet')) return 'sonnet';
+  if (m.includes('haiku')) return 'haiku';
+  return m.split('-').pop();
+}
+
+function folderName(cwd) {
+  if (!cwd) return '';
+  return cwd.replace(/\/+$/, '').split('/').pop();
+}
+
+function renderCard(s) {
+  const name = s.name || folderName(s.cwd);
+  const isActive = s.active;
+  const hasRC = !!s.rc_url;
+  const classes = ['session-card', isActive ? 'is-active' : '', hasRC ? 'has-rc' : ''].filter(Boolean).join(' ');
+  const ctxPct = s.ctx_pct || 0;
+
+  const branch = s.git_branch ? s.git_branch.replace(/^feature\/[^/]+\//, '') : '';
+  return `<div class="${classes}">
+    <div class="card-indicator">
+      ${isActive ? '<div class="pulse-dot"></div>' : '<div class="ended-dot"></div>'}
+    </div>
+    <div class="card-main">
+      <div class="card-top">
+        <span class="session-name${name ? '' : ' unnamed'}">${esc(name) || 'unnamed'}</span>
+        <span class="tag ${isActive ? 'active' : 'ended'}">${isActive ? 'active' : 'ended'}</span>
+      </div>
+      ${s.cwd ? `<div class="card-cwd" title="${esc(s.cwd)}">${esc(s.cwd)}</div>` : ''}
+      ${s.last_prompt ? `<div class="card-prompt" title="${esc(s.last_prompt)}">${esc(s.last_prompt)}</div>` : ''}
+    </div>
+    <div class="card-actions">
+      ${hasRC ? `<a class="rc-link" href="${esc(s.rc_url)}" target="_blank">↗ Remote</a>` : ''}
+      <button class="resume-btn" onclick="copyResume(event,'${esc(s.cwd)}','${esc(s.session_id)}')">⎘ Resume</button>
+      <span class="session-id-chip">${esc(s.session_id.slice(0,8))}</span>
+    </div>
+    <div class="card-meta">
+      ${branch ? `<span class="meta-item"><span class="ico">⎇</span>${esc(branch)}</span>` : ''}
+      ${s.model ? `<span class="meta-item"><span class="ico">◈</span>${esc(shortModel(s.model))}</span>` : ''}
+      ${s.last_active ? `<span class="meta-item"><span class="ico">◷</span>${relTime(s.last_active)}</span>` : ''}
+      ${(s.first_active && s.last_active) ? `<span class="meta-item"><span class="ico">⏱</span>${duration(s.first_active, s.last_active)}</span>` : ''}
+      ${s.total_turns ? `<span class="meta-item"><span class="ico">↔</span>${s.total_turns} turns</span>` : ''}
+      ${ctxPct > 0 ? `<span class="meta-item ctx-bar-wrap">
+        <span class="ico">▦</span>
+        <span class="ctx-bar"><span class="ctx-bar-fill ${ctxClass(ctxPct)}" style="width:${ctxPct}%"></span></span>
+        <span>${ctxPct}% ctx</span>
+      </span>` : ''}
+    </div>
+  </div>`;
+}
+
+function matchesQuery(s, q) {
+  if (!q) return true;
+  const lq = q.toLowerCase();
+  return [s.name, s.cwd, s.last_prompt, s.git_branch, s.model]
+    .some(v => v && v.toLowerCase().includes(lq));
+}
+
+function applyFilter(sessions) {
+  let out = sessions;
+  switch (activeFilter) {
+    case 'active': out = out.filter(s => s.active); break;
+    case 'rc':     out = out.filter(s => s.rc_url); break;
+    case 'ended':  out = out.filter(s => !s.active); break;
+  }
+  return out.filter(s => matchesQuery(s, activeQuery));
+}
+
+function copyResume(evt, cwd, sid) {
+  const cmd = cwd ? `cd ${cwd} && claude --resume ${sid} --remote-control` : `claude --resume ${sid} --remote-control`;
+  navigator.clipboard.writeText(cmd).catch(() => {});
+  const btn = evt.currentTarget;
+  btn.classList.add('copied');
+  btn.textContent = '✓ Copied';
+  setTimeout(() => { btn.classList.remove('copied'); btn.textContent = '⎘ Resume'; }, 1800);
+}
+
+function render() {
+  const list = document.getElementById('session-list');
+  const filtered = applyFilter(allSessions);
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty">No sessions match this filter.</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(renderCard).join('');
+}
+
+function renderStats(sessions) {
+  const total = sessions.length;
+  const active = sessions.filter(s => s.active).length;
+  const rc = sessions.filter(s => s.rc_url).length;
+  const avgCtx = sessions.length ? Math.round(sessions.reduce((a,s) => a + (s.ctx_pct||0), 0) / sessions.length) : 0;
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-chip active"><span class="val">${active}</span><span class="lbl">Active</span></div>
+    <div class="stat-chip"><span class="val">${total}</span><span class="lbl">Total (14d)</span></div>
+    <div class="stat-chip rc"><span class="val">${rc}</span><span class="lbl">Remote Control</span></div>
+    <div class="stat-chip"><span class="val">${avgCtx}%</span><span class="lbl">Avg Context</span></div>
+  `;
+}
+
+async function load() {
+  try {
+    const r = await fetch('session-data.json?t=' + Date.now());
+    const data = await r.json();
+    allSessions = data.sessions || [];
+    const genAt = data.generated_at ? new Date(data.generated_at) : null;
+    document.getElementById('gen-time').textContent =
+      genAt ? 'Updated ' + genAt.toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'}) : '';
+    renderStats(allSessions);
+    render();
+  } catch(e) {
+    document.getElementById('session-list').innerHTML =
+      '<div class="empty">Could not load session-data.json — run: node build-session-data.mjs</div>';
+  }
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    activeFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', () => {
+  activeQuery = searchInput.value.trim();
+  const url = new URL(location.href);
+  if (activeQuery) url.searchParams.set('q', activeQuery);
+  else url.searchParams.delete('q');
+  history.replaceState(null, '', url);
+  render();
+});
+
+// pre-fill from ?q=
+const initQ = new URL(location.href).searchParams.get('q') || '';
+if (initQ) { searchInput.value = initQ; activeQuery = initQ; }
+
+load();
+setInterval(load, 15000);
+</script>
+</body>
+</html>

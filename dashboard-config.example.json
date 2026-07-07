@@ -1,0 +1,156 @@
+{
+  "user": {
+    "name": "Filipe",
+    "locale": "pt",
+    "city": "Lisboa",
+    "timezone": "Europe/Lisbon"
+  },
+  "theme": {
+    "accents": {
+      "work":    "#4a9eff",
+      "agents":  "#a78bfa",
+      "data":    "#34d399",
+      "home":    "#f59e0b",
+      "gaming":  "#f43f5e",
+      "infra":      "#06b6d4",
+      "sprint":     "#fb923c",
+      "code":       "#22c55e",
+      "reports":    "#e879f9",
+      "checklist":  "#facc15",
+      "announcements": "#f97316",
+      "news":          "#38bdf8",
+      "music":         "#c084fc"
+    }
+  },
+  "sections": [
+    {
+      "id": "work",
+      "label": "Work",
+      "accent": "work",
+      "grid": { "col": "1 / 5", "row": "1" },
+      "links": [
+        { "icon": "📅", "name": "Google Calendar",      "url": "https://calendar.google.com/calendar/u/0/r" },
+        { "icon": "🎯", "name": "Jira — For You",       "url": "https://zmt.atlassian.net/jira/for-you" },
+        { "icon": "📋", "name": "Notion — Work Tasks",  "url": "https://www.notion.so/Work-Tasks-2b5294f28d9780de9994da966256cd6f" },
+        { "icon": "✉",  "name": "Gmail",                "url": "https://mail.google.com/" },
+        { "icon": "🐙", "name": "GitHub",               "url": "https://github.com/" },
+        { "icon": "🦊", "name": "GitLab",               "url": "https://gitlab.com/" },
+        { "icon": "📐", "name": "draw.io",              "url": "https://app.diagrams.net/" },
+        { "icon": "👥", "name": "HR Factorial",         "url": "https://app.factorialhr.com/?locale=pt" }
+      ]
+    },
+    {
+      "id": "wip",
+      "label": "WIP — Sprints",
+      "accent": "sprint",
+      "grid": { "col": "5 / 9", "row": "1" },
+      "links": [
+        { "icon": "🚀", "name": "Go Live",                      "url": "https://zmt.atlassian.net/issues?filter=10122" },
+        { "icon": "📌", "name": "GOAPI",                        "url": "https://zmt.atlassian.net/jira/software/c/projects/GOAPI/boards/9/backlog" },
+        { "icon": "📌", "name": "ZAPP",                         "url": "https://zmt.atlassian.net/jira/software/c/projects/ZAPP/boards/1/backlog" },
+        { "icon": "📌", "name": "ZBUN",                         "url": "https://zmt.atlassian.net/jira/software/c/projects/ZBUN/boards/29/backlog" },
+        { "icon": "📌", "name": "DATA",                         "url": "https://zmt.atlassian.net/jira/software/c/projects/DATA/boards/32/backlog" },
+        { "icon": "🔄", "name": "Processo de Mudança de Sprint","url": "https://zmt.atlassian.net/wiki/spaces/ZITT/pages/592576513/Processo+de+Mudan%C3%A7a+de+Sprint+DIG-IN+Dev" }
+      ]
+    },
+    {
+      "id": "agents",
+      "label": "Agents",
+      "accent": "agents",
+      "grid": { "col": "9 / 13", "row": "1" },
+      "links": [
+        { "icon": "🌀", "name": "Spinnable",        "url": "https://www.spinnable.ai/" },
+        { "icon": "✦",  "name": "Gemini",           "url": "https://gemini.google.com/" },
+        { "icon": "◈",  "name": "Claude",           "url": "https://claude.ai/new" },
+        { "icon": "⚡", "name": "Edgar",            "url": "https://edgar.dig-in.io/" },
+        { "icon": "⚡", "name": "Skills Dashboard", "url": "skills.html" },
+        { "icon": "◈",  "name": "Sessions",         "url": "session-dashboard.html" }
+      ]
+    },
+    {
+      "id": "data",
+      "label": "Data Project @ Work",
+      "accent": "data",
+      "grid": { "col": "1 / 7", "row": "2" },
+      "linksColumns": 2,
+      "links": [
+        { "icon": "⚡", "name": "DIG-IN Dispatcher", "url": "http://10.10.10.62:5174/" },
+        { "icon": "☁",  "name": "GCP Console",       "url": "https://console.cloud.google.com/welcome?pli=1&authuser=3" },
+        { "icon": "🖥",  "name": "Compute Engine",    "url": "https://console.cloud.google.com/compute?authuser=3&project=nexus-487914" }
+      ]
+    },
+    {
+      "id": "home",
+      "label": "Home",
+      "accent": "home",
+      "grid": { "col": "7 / 10", "row": "2" },
+      "links": [
+        { "icon": "🏠", "name": "Daily Management", "url": "https://www.notion.so/Daily-Management-235294f28d9780a78b12eee8a92bc09d?pvs=12" },
+        { "icon": "🤖", "name": "Reddit",           "url": "https://www.reddit.com/" }
+      ]
+    },
+    {
+      "id": "gaming",
+      "label": "Gaming",
+      "accent": "gaming",
+      "grid": { "col": "10 / 13", "row": "2" },
+      "links": [
+        { "icon": "🎮", "name": "Playline", "url": "https://www.notion.so/Gaming-Playline-300294f28d978042a699d354d0c17a34?showMoveTo=true" },
+        { "icon": "📡", "name": "Twitch",   "url": "https://www.twitch.tv/" },
+        { "icon": "💬", "name": "Discord",  "url": "https://discord.com/channels/795244159211405323/813003465856516126" }
+      ]
+    },
+    {
+      "id": "infra",
+      "label": "Infra & Cloud",
+      "accent": "infra",
+      "grid": { "col": "1 / 13", "row": "3" },
+      "linksColumns": 2,
+      "links": [
+        { "icon": "☁",  "name": "Azure Portal",  "url": "https://portal.azure.com/#home" },
+        { "icon": "🌐", "name": "Cloudflare",    "url": "https://dash.cloudflare.com" },
+        { "icon": "🖧",  "name": "PTISP",         "url": "https://my.ptisp.pt/" },
+        { "icon": "☁",  "name": "Jotelulu",      "url": "https://admin.jotelulu.com/" },
+        { "icon": "📞", "name": "Suporte — SPOC","url": "https://airtable.com/appm7sm3GMMeQisUk/tblUWBV2EJwOKKicA/viwA6YksUoqROBp3A?blocks=hide" },
+        { "icon": "📊", "name": "Zabbix",        "url": "https://zabbix-c130.dig-in.io/" },
+        { "icon": "🔍", "name": "Sentry",        "url": "https://zmt-europe-lda.sentry.io/issues/" },
+        { "icon": "🗄",  "name": "Supabase",      "url": "https://supabase.com/dashboard/organizations" }
+      ]
+    },
+    {
+      "id": "reports",
+      "type": "dynamic",
+      "label": "Reports",
+      "accent": "reports",
+      "grid": { "col": "1 / 13", "row": "4" }
+    },
+    {
+      "id": "checklist",
+      "type": "checklist",
+      "label": "Checklist do dia",
+      "accent": "checklist",
+      "grid": { "col": "1 / 7", "row": "5" }
+    },
+    {
+      "id": "announcements",
+      "type": "announcements",
+      "label": "Announcements",
+      "accent": "announcements",
+      "grid": { "col": "7 / 13", "row": "5" }
+    },
+    {
+      "id": "news",
+      "type": "news",
+      "label": "News",
+      "accent": "news",
+      "grid": { "col": "1 / 9", "row": "6" }
+    },
+    {
+      "id": "music",
+      "type": "music",
+      "label": "Music",
+      "accent": "music",
+      "grid": { "col": "9 / 13", "row": "6" }
+    }
+  ]
+}

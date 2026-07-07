@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOC Tech Triage — Backup System Crisis | 2026-06-29</title>
+<style>
+  :root {
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #334155;
+    --text: #e2e8f0; --text2: #94a3b8; --border: #334155;
+    --red: #ef4444; --red-bg: rgba(239,68,68,0.12);
+    --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.12);
+    --green: #10b981; --green-bg: rgba(16,185,129,0.12);
+    --gray: #6b7280; --gray-bg: rgba(107,114,128,0.12);
+    --blue: #3b82f6; --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+  .header { padding: 24px 32px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header .meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .toggle { cursor: pointer; background: var(--bg3); border: none; color: var(--text2); padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+  .cards { display: flex; gap: 16px; padding: 24px 32px; flex-wrap: wrap; }
+  .card { background: var(--bg2); border-radius: 10px; padding: 16px 20px; flex: 1; min-width: 140px; border: 1px solid var(--border); }
+  .card .num { font-size: 32px; font-weight: 800; line-height: 1; }
+  .card .lbl { font-size: 11px; color: var(--text2); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .card.red .num { color: var(--red); } .card.blue .num { color: var(--blue); }
+  .section { margin: 0 32px 24px; }
+  details { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  summary { padding: 14px 20px; cursor: pointer; font-weight: 600; font-size: 15px; list-style: none; display: flex; align-items: center; gap: 8px; user-select: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary .arrow { margin-left: auto; color: var(--text2); font-size: 12px; transition: transform 0.2s; }
+  details[open] summary .arrow { transform: rotate(90deg); }
+  .table-wrap { overflow-x: auto; padding: 0 0 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--bg3); padding: 8px 16px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); cursor: pointer; white-space: nowrap; position: sticky; top: 0; }
+  th:hover { color: var(--text); }
+  td { padding: 10px 16px; border-top: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  tr:hover td { background: rgba(255,255,255,0.04); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .badge-red { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-orange { background: rgba(249,115,22,0.12); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+  .badge-risk { background: rgba(239,68,68,0.2); color: var(--red); font-weight: 700; border: 1px solid rgba(239,68,68,0.5); }
+  .jira-link { color: var(--blue); text-decoration: none; font-family: monospace; font-size: 12px; }
+  .jira-link:hover { text-decoration: underline; }
+  .subject { max-width: 380px; }
+  .analysis-box { margin: 16px; background: var(--bg); border: 1px solid var(--amber); border-radius: 8px; padding: 16px 20px; }
+  .analysis-box h3 { color: var(--amber); font-size: 13px; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .analysis-box p, .analysis-box li { color: var(--text2); font-size: 13px; margin-bottom: 6px; }
+  .analysis-box ul { padding-left: 20px; }
+  .history-box { margin: 16px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; }
+  .history-box h3 { color: var(--text2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .history-box .item { font-size: 13px; color: var(--text2); display: flex; gap: 12px; align-items: center; margin-bottom: 4px; }
+  .footer { padding: 24px 32px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text2); }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>🔴 SPOC Tech Triage — Backup System Crisis</h1>
+    <div class="meta">DIG-IN_Geral · 3 tickets abertos · todos sem sprint · todos unassigned · Gerado em: 2026-06-29</div>
+  </div>
+  <div><button class="toggle" onclick="toggleTheme()">☀️ Light</button></div>
+</div>
+<div class="cards">
+  <div class="card blue"><div class="num">3</div><div class="lbl">Total Tickets</div></div>
+  <div class="card red"><div class="num">3</div><div class="lbl">Grupo A — Sem Sprint</div></div>
+  <div class="card red"><div class="num">2</div><div class="lbl">Incidents</div></div>
+  <div class="card red"><div class="num">7+</div><div class="lbl">Dias sem backup</div></div>
+</div>
+<div class="section">
+  <details open>
+    <summary>
+      <span class="badge badge-red">A</span>
+      Sem Sprint / Sem SP → Dar estimativa + BIZ PENDING
+      <span style="color:var(--text2); font-weight:400; font-size:13px; margin-left:8px;">(3 tickets)</span>
+      <span class="arrow">▶</span>
+    </summary>
+    <div class="analysis-box">
+      <h3>⚠️ Análise — Cluster de Incidente de Backup (2026-06-22)</h3>
+      <p>3 tickets criados no mesmo dia por Pedro Silva, todos DIG-IN_Geral. Cluster único:</p>
+      <ul>
+        <li><strong style="color:var(--red)">Storage primária caiu</strong> (ZBUN-1762) → sistema a usar storage redundante — não é solução permanente</li>
+        <li><strong style="color:var(--red)">Backups automáticos inativos</strong> (ZBUN-1761) → BDs sem backup automático ativo</li>
+        <li><strong style="color:var(--amber)">Tabelas de Logs em overflow</strong> (GOAPI-4073) → timeouts que bloqueiam backups</li>
+      </ul>
+      <p style="margin-top:10px;"><strong>Sequência provável:</strong> Logs cresceram → timeout no backup → storage primária encheu/falhou → backups automáticos pararam.</p>
+      <p style="color:var(--red); font-weight:600; margin-top:8px;">⚠️ BDs sem backup automático há pelo menos 7 dias. Risco crítico de perda de dados.</p>
+      <p style="margin-top:8px; font-size:12px; color:var(--text2);">Histórico: DATA-261 "Backup BD SITH" (Done 2026-03-10, Ruben) — sistema tratado em março, voltou a falhar.</p>
+    </div>
+    <div class="table-wrap">
+      <table id="tbl-a">
+        <thead>
+          <tr>
+            <th onclick="sortTable('tbl-a',0)">ID ↕</th>
+            <th onclick="sortTable('tbl-a',1)">Cliente ↕</th>
+            <th onclick="sortTable('tbl-a',2)">Assunto ↕</th>
+            <th onclick="sortTable('tbl-a',3)">Tipo ↕</th>
+            <th onclick="sortTable('tbl-a',4)">JIRA ↕</th>
+            <th onclick="sortTable('tbl-a',5)">JIRA Status ↕</th>
+            <th onclick="sortTable('tbl-a',6)">POC ↕</th>
+            <th onclick="sortTable('tbl-a',7)">Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>SPOC22062026_01724</code></td>
+            <td>DIG-IN_Geral</td>
+            <td class="subject">Tabelas de Logs demasiado grandes → timeouts → impossibilita backups na BD</td>
+            <td><span class="badge badge-orange">Incident</span></td>
+            <td><a href="https://zmt.atlassian.net/browse/GOAPI-4073" class="jira-link" target="_blank">GOAPI-4073</a></td>
+            <td><span class="badge badge-red">Open</span></td>
+            <td>Pedro Silva</td>
+            <td><span class="badge badge-risk">⚠️ SP + BIZ PENDING</span></td>
+          </tr>
+          <tr>
+            <td><code>SPOC22062026_01725</code></td>
+            <td>DIG-IN_Geral</td>
+            <td class="subject">Reativar sistema de Backups de BDs automático</td>
+            <td><span class="badge badge-green">Request</span></td>
+            <td><a href="https://zmt.atlassian.net/browse/ZBUN-1761" class="jira-link" target="_blank">ZBUN-1761</a></td>
+            <td><span class="badge badge-red">Open</span></td>
+            <td>Pedro Silva</td>
+            <td><span class="badge badge-risk">⚠️ SP + BIZ PENDING</span></td>
+          </tr>
+          <tr>
+            <td><code>SPOC22062026_01726</code></td>
+            <td>DIG-IN_Geral</td>
+            <td class="subject">Storage principal para Backups Down — a usar storage redundante</td>
+            <td><span class="badge badge-orange">Incident</span></td>
+            <td><a href="https://zmt.atlassian.net/browse/ZBUN-1762" class="jira-link" target="_blank">ZBUN-1762</a></td>
+            <td><span class="badge badge-red">Open</span></td>
+            <td>Pedro Silva</td>
+            <td><span class="badge badge-risk">⚠️ SP + BIZ PENDING</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+</div>
+<div class="footer">Enterprise Architect Agent — DIG-IN · Triage focado em tickets de Backup · 2026-06-29</div>
+<script>
+function sortTable(id, col) {
+  const table = document.getElementById(id);
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const th = table.querySelectorAll('th')[col];
+  const asc = th.dataset.asc !== 'true';
+  table.querySelectorAll('th').forEach(t => delete t.dataset.asc);
+  th.dataset.asc = asc;
+  rows.sort((a,b) => {
+    const av = a.cells[col]?.innerText || '', bv = b.cells[col]?.innerText || '';
+    return asc ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+function toggleTheme() {
+  const r = document.documentElement, btn = document.querySelector('.toggle');
+  if (r.style.getPropertyValue('--bg') === '#ffffff') {
+    ['--bg','--bg2','--bg3','--text','--text2','--border'].forEach(p => r.style.removeProperty(p));
+    btn.textContent = '☀️ Light';
+  } else {
+    r.style.setProperty('--bg','#ffffff'); r.style.setProperty('--bg2','#f8fafc');
+    r.style.setProperty('--bg3','#e2e8f0'); r.style.setProperty('--text','#0f172a');
+    r.style.setProperty('--text2','#475569'); r.style.setProperty('--border','#e2e8f0');
+    btn.textContent = '🌙 Dark';
+  }
+}
+</script>
+</body>
+</html>

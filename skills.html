@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skills Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d1a;
+      --surface: #13132b;
+      --surface2: #1a1a3a;
+      --border: #252550;
+      --accent: #a78bfa;
+      --accent2: #60a5fa;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --muted: #64748b;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 28px; border-bottom: 1px solid var(--border); background: var(--surface); gap: 12px; flex-wrap: wrap; }
+    .logo { font-size: 0.9rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .clock { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .rebuild-hint { font-size: 0.7rem; color: var(--muted); background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 4px 10px; white-space: nowrap; }
+    .rebuild-hint code { color: var(--accent2); }
+    .refresh-btn { font-size: 0.72rem; padding: 4px 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .refresh-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .main { padding: 22px 28px; max-width: 1440px; margin: 0 auto; }
+
+    /* ── Stats bar ──────────────────────────────────────────────── */
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; min-width: 100px; }
+    .stat-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    .stat-val  { font-size: 1.3rem; font-weight: 700; margin-top: 4px; }
+    .stat-val.accent { color: var(--accent); }
+    .stat-val.green  { color: var(--green); }
+    .stat-val.yellow { color: var(--yellow); }
+
+    /* ── Plugins strip ──────────────────────────────────────────── */
+    .plugins-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .strip-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-right: 2px; }
+    .plugin-chip { font-size: 0.7rem; padding: 4px 11px; border-radius: 14px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .plugin-chip .chip-count { font-size: 0.6rem; opacity: 0.7; }
+    .plugin-chip.active { border-color: var(--accent2); color: var(--accent2); background: #1e3a5f; }
+
+    /* ── Toolbar ────────────────────────────────────────────────── */
+    .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .search { flex: 1; min-width: 240px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; }
+    .search:focus { outline: none; border-color: var(--accent); }
+    .area-chip { font-size: 0.7rem; padding: 4px 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+    .area-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .overlaps-toggle { font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+
+    /* ── Meta line ──────────────────────────────────────────────── */
+    .meta-line { font-size: 0.7rem; color: var(--muted); margin-bottom: 14px; }
+
+    /* ── Grid ───────────────────────────────────────────────────── */
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+
+    /* ── Card ───────────────────────────────────────────────────── */
+    .skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 13px 15px; cursor: pointer; transition: border-color .15s; }
+    .skill-card:hover { border-color: var(--accent); }
+    .skill-card.open { border-color: var(--accent); }
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .skill-name { font-size: 0.88rem; font-weight: 600; color: var(--text); word-break: break-word; }
+    .expand-icon { font-size: 0.65rem; color: var(--muted); margin-top: 3px; flex-shrink: 0; }
+    .skill-badges { display: flex; gap: 5px; flex-wrap: wrap; margin: 7px 0 5px; }
+    .badge { font-size: 0.6rem; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+    .badge-plugin  { background: var(--surface2); color: var(--muted); }
+    .badge-plugin.local   { background: #1a2e1a; color: var(--green); }
+    .badge-plugin.superpowers { background: #2e1a5e; color: var(--accent); }
+    .badge-area   { background: #312e81; color: var(--accent); }
+    .badge-source { background: var(--surface2); color: var(--muted); }
+    .badge-overlap { background: #78350f; color: var(--yellow); }
+    .badge-ver    { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+    .skill-desc   { font-size: 0.73rem; color: var(--muted); line-height: 1.5; max-height: 3.5em; overflow: hidden; }
+    .skill-card.open .skill-desc { max-height: none; }
+    .skill-tags   { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .skill-tag    { font-size: 0.58rem; padding: 1px 6px; border-radius: 3px; background: var(--bg); color: var(--muted); }
+    .skill-detail { display: none; margin-top: 10px; border-top: 1px solid var(--surface2); padding-top: 8px; font-size: 0.72rem; }
+    .skill-card.open .skill-detail { display: block; }
+    .detail-row { margin-bottom: 5px; color: var(--muted); }
+    .detail-row strong { color: var(--text); }
+    .detail-row code { background: var(--bg); padding: 1px 5px; border-radius: 3px; color: var(--accent2); font-family: monospace; }
+
+    /* ── Empty state ────────────────────────────────────────────── */
+    .empty { padding: 40px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+    .empty code { color: var(--accent2); }
+
+    /* ── Section label ──────────────────────────────────────────── */
+    .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    @media (max-width: 640px) {
+      .main { padding: 16px; }
+      .header { padding: 12px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">⚡ Skills Dashboard</div>
+  <div class="header-right">
+    <span class="rebuild-hint">rebuild: <code>node build-skills-data.mjs</code></span>
+    <button class="refresh-btn" onclick="reloadData()">↻ Refresh</button>
+    <span class="clock" id="clock"></span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Stats -->
+  <div class="stats-row" id="stats-row"></div>
+
+  <!-- Plugin filter -->
+  <div class="plugins-strip" id="plugins-strip">
+    <span class="strip-label">Plugin</span>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input class="search" id="search" placeholder="Pesquisar por nome, descrição ou tag…" oninput="render()">
+    <div id="areas" style="display:contents"></div>
+    <label class="overlaps-toggle">
+      <input type="checkbox" id="overlaps-only" onchange="render()"> só overlaps
+    </label>
+  </div>
+
+  <!-- Meta -->
+  <div class="meta-line" id="meta-line"></div>
+
+  <!-- Grid -->
+  <div class="section-label" id="grid-label">Skills instaladas</div>
+  <div class="skills-grid" id="grid"></div>
+
+</div>
+
+<script>
+  // ── Clock ──────────────────────────────────────────────────────
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent =
+      n.toLocaleDateString('pt-PT') + ' ' + n.toTimeString().slice(0,5);
+  }
+  tick(); setInterval(tick, 30000);
+
+  // ── XSS escape ────────────────────────────────────────────────
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // ── Normalise for search ──────────────────────────────────────
+  function norm(s) {
+    return String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  }
+
+  // ── State ─────────────────────────────────────────────────────
+  const activeAreas   = new Set();
+  const activePlugins = new Set();
+
+  // ── Init ──────────────────────────────────────────────────────
+  function init() {
+    const data = window.SKILLS_DATA;
+    if (!data) {
+      document.getElementById('grid').innerHTML =
+        `<div class="empty">Ficheiro <code>skills-data.js</code> não encontrado.<br>Corre: <code>node build-skills-data.mjs</code></div>`;
+      return;
+    }
+
+    // Stats
+    const pluginsCount = (data.plugins || []).length;
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat-card"><div class="stat-label">Skills</div><div class="stat-val accent">${data.counts.total}</div></div>
+      <div class="stat-card"><div class="stat-label">Plugins</div><div class="stat-val green">${pluginsCount}</div></div>
+      <div class="stat-card"><div class="stat-label">Overlaps</div><div class="stat-val ${data.counts.overlaps > 0 ? 'yellow' : 'green'}">${data.counts.overlaps}</div></div>
+      <div class="stat-card"><div class="stat-label">Gerado</div><div class="stat-val" style="font-size:.85rem;color:var(--muted)">${esc(data.generated)}${data.device && data.device !== 'unknown' ? ' · ' + esc(data.device) : ''}</div></div>
+    `;
+
+    // Plugin chips
+    const strip = document.getElementById('plugins-strip');
+    const allChip = document.createElement('span');
+    allChip.className = 'plugin-chip active';
+    allChip.setAttribute('data-plugin','__all__');
+    allChip.innerHTML = `Todos <span class="chip-count">${data.counts.total}</span>`;
+    allChip.onclick = () => togglePlugin('__all__', allChip);
+    strip.appendChild(allChip);
+    for (const p of (data.plugins || [])) {
+      const c = document.createElement('span');
+      c.className = 'plugin-chip';
+      c.setAttribute('data-plugin', p.name);
+      c.innerHTML = `${esc(p.name)}${p.version ? ' <span class="chip-count">v'+esc(p.version)+'</span>' : ''} <span class="chip-count">${p.count}</span>`;
+      c.onclick = () => togglePlugin(p.name, c);
+      strip.appendChild(c);
+    }
+
+    // Area chips
+    const areasEl = document.getElementById('areas');
+    for (const a of (data.areas || [])) {
+      const cnt = data.counts.byArea[a] || 0;
+      if (!cnt) continue;
+      const c = document.createElement('span');
+      c.className = 'area-chip';
+      c.setAttribute('data-area', a);
+      c.textContent = `${a} (${cnt})`;
+      c.onclick = () => toggleArea(a, c);
+      areasEl.appendChild(c);
+    }
+
+    render();
+  }
+
+  function togglePlugin(name, el) {
+    if (name === '__all__') {
+      activePlugins.clear();
+      document.querySelectorAll('.plugin-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+    } else {
+      document.querySelector('.plugin-chip[data-plugin="__all__"]').classList.remove('active');
+      if (activePlugins.has(name)) { activePlugins.delete(name); el.classList.remove('active'); }
+      else { activePlugins.add(name); el.classList.add('active'); }
+      if (activePlugins.size === 0) {
+        document.querySelector('.plugin-chip[data-plugin="__all__"]').classList.add('active');
+      }
+    }
+    render();
+  }
+
+  function toggleArea(name, el) {
+    if (activeAreas.has(name)) { activeAreas.delete(name); el.classList.remove('active'); }
+    else { activeAreas.add(name); el.classList.add('active'); }
+    render();
+  }
+
+  function render() {
+    const data = window.SKILLS_DATA;
+    if (!data) return;
+    const q = norm(document.getElementById('search').value);
+    const overlapsOnly = document.getElementById('overlaps-only').checked;
+    let list = data.skills;
+
+    if (activePlugins.size) list = list.filter(s => activePlugins.has(s.plugin));
+    if (activeAreas.size)   list = list.filter(s => activeAreas.has(s.area));
+    if (overlapsOnly)       list = list.filter(s => s.overlapGroup);
+
+    const tokens = q.split(/\s+/).filter(Boolean);
+    if (tokens.length) {
+      list = list.filter(s => {
+        const hay = norm(s.name) + ' ' + norm(s.description) + ' ' + (s.tags||[]).map(norm).join(' ');
+        return tokens.every(t => hay.includes(t));
+      });
+    }
+
+    document.getElementById('meta-line').textContent =
+      `${list.length} de ${data.counts.total} skills`;
+
+    if (!list.length) {
+      document.getElementById('grid').innerHTML = '<div class="empty">Nenhuma skill encontrada.</div>';
+      return;
+    }
+
+    document.getElementById('grid').innerHTML = list.map(s => {
+      const pluginClass = s.plugin === 'local' ? 'local' : s.plugin === 'superpowers' ? 'superpowers' : '';
+      return `
+      <div class="skill-card" onclick="this.classList.toggle('open')">
+        <div class="card-top">
+          <div class="skill-name">${esc(s.name)}</div>
+          <span class="expand-icon">▾</span>
+        </div>
+        <div class="skill-badges">
+          <span class="badge badge-plugin ${esc(pluginClass)}">${esc(s.plugin)}</span>
+          <span class="badge badge-area">${esc(s.area)}</span>
+          ${s.version ? `<span class="badge badge-ver">v${esc(s.version)}</span>` : ''}
+          ${s.overlapGroup ? '<span class="badge badge-overlap">⚠ overlap</span>' : ''}
+        </div>
+        <div class="skill-desc">${esc(s.description) || '<em>sem descrição</em>'}</div>
+        <div class="skill-tags">${(s.tags||[]).slice(0,8).map(t=>`<span class="skill-tag">${esc(t)}</span>`).join('')}</div>
+        <div class="skill-detail">
+          <div class="detail-row">Invocar: <code>${esc(s.invoke)}</code></div>
+          <div class="detail-row">Fonte: <strong>${esc(s.source)}</strong></div>
+          ${s.overlapGroup ? `<div class="detail-row" style="color:var(--yellow)">⚠ Overlap com: <strong>${esc(s.overlapGroup)}</strong></div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function loadData(cb) {
+    const s = document.createElement('script');
+    s.src = 'skills-data.js?t=' + Date.now();
+    s.onload = cb;
+    s.onerror = () => { document.getElementById('grid').innerHTML = '<div class="empty">Ficheiro <code>skills-data.js</code> não encontrado.<br>Corre: <code>node build-skills-data.mjs</code></div>'; };
+    document.head.appendChild(s);
+  }
+
+  function reloadData() {
+    window.SKILLS_DATA = undefined;
+    activeAreas.clear();
+    activePlugins.clear();
+    document.getElementById('stats-row').innerHTML = '';
+    document.getElementById('plugins-strip').innerHTML = '<span class="strip-label">Plugin</span>';
+    document.getElementById('areas').innerHTML = '';
+    loadData(init);
+  }
+
+  loadData(init);
+</script>
+</body>
+</html>

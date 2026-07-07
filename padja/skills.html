@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic OS — Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0d1a;
+      --surface: #13132b;
+      --surface2: #1a1a3a;
+      --border: #252550;
+      --accent: #a78bfa;
+      --accent2: #60a5fa;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --meta-blue: #1877f2;
+      --google-blue: #4285f4;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Header */
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--surface); }
+    .logo { font-size: 1rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .clock { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .settings-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; color: var(--muted); font-size: 0.75rem; cursor: pointer; }
+    .settings-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Layout */
+    .main { padding: 24px 28px; max-width: 1400px; margin: 0 auto; }
+
+    /* Business grid */
+    .biz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+
+    /* Cards */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .card-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
+    .card-name { font-size: 1.05rem; font-weight: 600; color: var(--text); margin-top: 2px; }
+    .biz-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+    .biz-icon.cr { background: #1e3a5f; }
+    .biz-icon.mm { background: #1a2e1a; }
+
+    /* Stat row */
+    .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .stat { flex: 1; min-width: 80px; background: var(--surface2); border-radius: 6px; padding: 10px 12px; }
+    .stat-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-val { font-size: 1.2rem; font-weight: 700; margin-top: 3px; }
+    .stat-val.green { color: var(--green); }
+    .stat-val.yellow { color: var(--yellow); }
+    .stat-val.muted { color: var(--muted); }
+    .stat-val.accent { color: var(--accent); }
+
+    /* Pill badges */
+    .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.68rem; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+    .pill-green { background: #064e3b; color: var(--green); }
+    .pill-yellow { background: #78350f; color: var(--yellow); }
+    .pill-muted { background: #1f2937; color: var(--muted); }
+    .pill-accent { background: #2e1a5e; color: var(--accent); }
+    .pill-blue { background: #1e3a5f; color: var(--accent2); }
+
+    /* Action links */
+    .card-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+    .action-link { font-size: 0.72rem; color: var(--accent); text-decoration: none; background: #1e1b4b; border-radius: 5px; padding: 4px 10px; }
+    .action-link:hover { background: #2e2b6b; }
+
+    /* Section divider */
+    .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin: 20px 0 12px; display: flex; align-items: center; gap: 8px; }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* Ads panel */
+    .ads-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+    .ads-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); }
+    .ads-panel-title { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    .platform-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-meta { background: var(--meta-blue); }
+    .dot-google { background: var(--google-blue); }
+    .dot-green { background: var(--green); }
+    .dot-yellow { background: var(--yellow); }
+    .ads-panel-body { padding: 16px 20px; }
+
+    /* Campaign table */
+    .camp-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .camp-table th { text-align: left; padding: 6px 10px; color: var(--muted); font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    .camp-table td { padding: 9px 10px; border-bottom: 1px solid var(--surface2); vertical-align: middle; }
+    .camp-table tr:last-child td { border-bottom: none; }
+    .camp-table tr:hover td { background: var(--surface2); }
+    .camp-name { font-weight: 500; max-width: 260px; }
+    .year-tag { font-size: 0.62rem; background: #1e3a5f; color: var(--accent2); border-radius: 3px; padding: 1px 4px; margin-left: 5px; }
+
+    /* Status badge */
+    .s-badge { font-size: 0.65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; }
+    .s-ACTIVE { background: #064e3b; color: var(--green); }
+    .s-PAUSED { background: #78350f; color: var(--yellow); }
+    .s-ARCHIVED, .s-DELETED { background: #1f2937; color: var(--muted); }
+
+    /* Integrations row */
+    .integrations { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .integration-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+    .int-icon { font-size: 1.2rem; width: 32px; text-align: center; }
+    .int-name { font-size: 0.8rem; font-weight: 600; }
+    .int-status { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+
+    /* Token modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; width: 480px; max-width: 90vw; }
+    .modal h2 { font-size: 1rem; color: var(--accent); margin-bottom: 6px; }
+    .modal p { font-size: 0.8rem; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+    .modal input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; font-family: monospace; margin-bottom: 12px; }
+    .modal input:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn { background: #7c3aed; color: white; border: none; border-radius: 6px; padding: 8px 18px; font-size: 0.85rem; cursor: pointer; }
+    .btn:hover { background: #6d28d9; }
+    .btn-ghost { background: var(--surface2); color: var(--muted); }
+    .btn-ghost:hover { background: var(--border); color: var(--text); }
+
+    /* Filters */
+    .filters { display: flex; gap: 6px; margin-bottom: 12px; }
+    .f-btn { font-size: 0.7rem; padding: 3px 10px; background: var(--surface2); border: none; border-radius: 4px; color: var(--muted); cursor: pointer; }
+    .f-btn.active { background: var(--accent); color: white; }
+
+    /* Meta status bar */
+    .meta-status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 0.75rem; }
+    .token-indicator { font-size: 0.72rem; color: var(--muted); }
+    .token-ok { color: var(--green); }
+    .token-missing { color: var(--yellow); }
+
+    /* Loader */
+    .loader { text-align: center; padding: 24px; color: var(--muted); font-size: 0.85rem; }
+    .err { color: var(--red); font-size: 0.8rem; }
+
+    /* Mundo das Mascotes status items */
+    .mm-status-list { display: flex; flex-direction: column; gap: 6px; }
+    .mm-item { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; padding: 6px 0; border-bottom: 1px solid var(--surface2); }
+    .mm-item:last-child { border-bottom: none; }
+    .mm-label { color: var(--muted); }
+
+    @media (max-width: 700px) {
+      .biz-grid { grid-template-columns: 1fr; }
+      .integrations { grid-template-columns: 1fr 1fr; }
+    }
+    /* Nav de vistas */
+    .viewnav { display: flex; gap: 8px; padding: 0 20px; margin: -8px 0 4px; }
+    .viewnav button { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); border-radius: 6px 6px 0 0; padding: 8px 16px; font-size: 0.82rem; cursor: pointer; }
+    .viewnav button.active { background: var(--surface); color: var(--accent); border-bottom-color: var(--surface); }
+    /* Skills view */
+    .skills-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+    .skills-search { flex: 1 1 240px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; }
+    .skills-search:focus { outline: none; border-color: var(--accent); }
+    .area-chip { font-size: 0.7rem; padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; color: var(--muted); cursor: pointer; }
+    .area-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .skills-meta { font-size: 0.72rem; color: var(--muted); margin-bottom: 10px; }
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
+    .skill-card:hover { border-color: var(--accent); }
+    .skill-name { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+    .skill-badges { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+    .skill-badge { font-size: 0.6rem; padding: 2px 7px; border-radius: 4px; background: var(--surface2); color: var(--muted); }
+    .skill-badge.area { background: #312e81; color: var(--accent); }
+    .skill-badge.overlap { background: #78350f; color: var(--yellow); }
+    .skill-desc { font-size: 0.74rem; color: var(--muted); line-height: 1.45; max-height: 3.6em; overflow: hidden; }
+    .skill-card.open .skill-desc { max-height: none; }
+    .skill-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .skill-tag { font-size: 0.58rem; padding: 1px 6px; border-radius: 3px; background: var(--bg); color: var(--muted); }
+    .skill-howto { display: none; margin-top: 8px; font-size: 0.72rem; color: var(--text); border-top: 1px solid var(--surface2); padding-top: 8px; }
+    .skill-card.open .skill-howto { display: block; }
+    .skill-howto code { background: var(--bg); padding: 1px 5px; border-radius: 3px; color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">⚡ Agentic OS</div>
+  <div class="header-right">
+    <span class="clock" id="clock"></span>
+    <a class="settings-btn" href="obsidian://open?vault=agentic-os&amp;file=AGENTIC-OS-MAPA.canvas" style="text-decoration:none;" title="Abre o mapa no Obsidian">🗺 Mapa</a>
+    <button class="settings-btn" onclick="openSettings()">⚙ Tokens</button>
+  </div>
+</div>
+
+<!-- Token Modal -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal">
+    <h2>Configuração de tokens</h2>
+    <p>Tokens guardados localmente no browser (localStorage). Nunca enviados a terceiros.</p>
+    <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Meta Ads Access Token</label>
+    <input type="password" id="meta-token-input" placeholder="EAABx…" autocomplete="off">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeSettings()">Cancelar</button>
+      <button class="btn" onclick="saveSettings()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="viewnav">
+  <button id="nav-painel" class="active" onclick="switchView('painel')">📊 Painel</button>
+  <button id="nav-skills" onclick="switchView('skills')">🧩 Skills</button>
+</div>
+
+<div class="main" id="view-painel">
+
+  <!-- Business cards -->
+  <div class="section-label">Linhas de negócio</div>
+  <div class="biz-grid">
+
+    <!-- Cascais Routes -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Turismo · Actividades</div>
+          <div class="card-name">Cascais Routes</div>
+        </div>
+        <div class="biz-icon cr">🚴</div>
+      </div>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="stat-label">Meta Ads</div>
+          <div class="stat-val green" id="cr-meta-active">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Pausadas</div>
+          <div class="stat-val yellow" id="cr-meta-paused">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">2026 copiadas</div>
+          <div class="stat-val accent" id="cr-2026-count">—</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Google Ads</div>
+          <div class="stat-val yellow">⏳</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="pill pill-green">Meta MCP ✓</span>
+        <span class="pill pill-yellow">Google Ads pendente</span>
+        <span class="pill pill-muted">Basic Access ~3d</span>
+      </div>
+      <div class="card-actions">
+        <a href="wiki/clientes/cascais-routes/ads-dashboard.html" class="action-link">Ver Ads Dashboard →</a>
+        <a href="wiki/clientes/cascais-routes/ads-monitor.md" class="action-link">Nota Obsidian</a>
+      </div>
+    </div>
+
+    <!-- Mundo das Mascotes -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Aluguer · Eventos</div>
+          <div class="card-name">Mundo das Mascotes</div>
+        </div>
+        <div class="biz-icon mm">🦁</div>
+      </div>
+      <div class="mm-status-list">
+        <div class="mm-item">
+          <span class="mm-label">Site atual</span>
+          <span class="pill pill-green">Live — mundodasmascotes.pt</span>
+        </div>
+        <div class="mm-item">
+          <span class="mm-label">Novo site</span>
+          <span class="pill pill-yellow">Claude Design — não implementado</span>
+        </div>
+        <div class="mm-item">
+          <span class="mm-label">Meta Ads</span>
+          <span class="pill pill-muted">Não configurado</span>
+        </div>
+        <div class="mm-item">
+          <span class="mm-label">Google Ads</span>
+          <span class="pill pill-muted">Não configurado</span>
+        </div>
+        <div class="mm-item">
+          <span class="mm-label">Prioridade</span>
+          <span class="pill pill-accent">Negócio (implementação depois)</span>
+        </div>
+      </div>
+      <div class="card-actions">
+        <a href="wiki/clientes/mundodasmascotes/" class="action-link">Pasta cliente →</a>
+      </div>
+    </div>
+
+    <!-- Tech-Lar -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Serviços Web · PME</div>
+          <div class="card-name">Tech-Lar</div>
+        </div>
+        <div class="biz-icon" style="background:#2e1a5e;">🏠</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <span class="pill pill-green">Site live · tech-lar.pt</span>
+        <span class="pill pill-accent">9 serviços</span>
+        <span class="pill pill-yellow">Sem blog/pricing/booking</span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;">
+        Expansão = conteúdo/SEO + pricing + case studies. Site não tocado (só diagnóstico).
+      </div>
+      <div class="card-actions">
+        <a href="obsidian://open?vault=agentic-os&amp;file=wiki/clientes/tech-lar/index.md" class="action-link">Nota cliente →</a>
+        <a href="obsidian://open?vault=agentic-os&amp;file=wiki/clientes/tech-lar/expansao-servicos.md" class="action-link">Expansão</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Meta Ads campaigns -->
+  <div class="section-label">Campanhas Meta Ads — Cascais Routes</div>
+  <div class="ads-panel">
+    <div class="ads-panel-header">
+      <div class="ads-panel-title">
+        <span class="platform-dot dot-meta"></span>
+        Meta Ads · act_789902546183546
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="token-indicator" id="token-indicator"></span>
+        <button class="f-btn active" onclick="refreshMeta()" style="background:#7c3aed;color:white;">↻ Atualizar</button>
+      </div>
+    </div>
+    <div class="ads-panel-body">
+      <div class="filters">
+        <button class="f-btn active" id="f-all" onclick="filterCamp('all')">Todas</button>
+        <button class="f-btn" id="f-2026" onclick="filterCamp('2026')">2026</button>
+        <button class="f-btn" id="f-2025" onclick="filterCamp('2025')">2025</button>
+        <button class="f-btn" id="f-active" onclick="filterCamp('active')">Ativas</button>
+      </div>
+      <div id="camp-container"><p class="loader">Prima "Atualizar" ou configure o token em ⚙ Tokens.</p></div>
+    </div>
+  </div>
+
+  <!-- Google Ads -->
+  <div class="ads-panel" style="margin-bottom:20px;">
+    <div class="ads-panel-header">
+      <div class="ads-panel-title">
+        <span class="platform-dot dot-google"></span>
+        Google Ads · MCC 996-273-3060
+      </div>
+      <span class="pill pill-yellow">Pendente</span>
+    </div>
+    <div class="ads-panel-body">
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.7;">
+        ⏳ <strong style="color:var(--text)">Basic Access</strong> em aprovação (~3 dias úteis — submetido 2026-06-01)<br>
+        📋 Conta <strong style="color:var(--text)">964-909-3048</strong> precisa de ser adicionada como cliente ao MCC<br>
+        🔗 MCP <code>google-ads</code> Connected — queries disponíveis após aprovação
+      </div>
+    </div>
+  </div>
+
+  <!-- Integrations -->
+  <div class="section-label">Integrações &amp; MCPs</div>
+  <div class="integrations">
+    <div class="integration-card">
+      <div class="int-icon">▶</div>
+      <div>
+        <div class="int-name">meta-ads MCP</div>
+        <div class="int-status" style="color:var(--green);">✓ Connected</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">G</div>
+      <div>
+        <div class="int-name">google-ads MCP</div>
+        <div class="int-status" style="color:var(--green);">✓ Connected</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">🎭</div>
+      <div>
+        <div class="int-name">Playwright MCP</div>
+        <div class="int-status" style="color:var(--green);">✓ Connected</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">📚</div>
+      <div>
+        <div class="int-name">Context7 MCP</div>
+        <div class="int-status" style="color:var(--green);">✓ Connected</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">🎨</div>
+      <div>
+        <div class="int-name">Figma MCP</div>
+        <div class="int-status" style="color:var(--green);">✓ Connected</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">💬</div>
+      <div>
+        <div class="int-name">Slack MCP</div>
+        <div class="int-status" style="color:var(--green);">✓ Connected</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">📦</div>
+      <div>
+        <div class="int-name">Supabase MCP</div>
+        <div class="int-status" style="color:var(--yellow);">! Needs auth</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">▲</div>
+      <div>
+        <div class="int-name">Vercel MCP</div>
+        <div class="int-status" style="color:var(--yellow);">! Needs auth</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ideias & Roadmap -->
+  <div class="section-label">🧭 Ideias &amp; Roadmap</div>
+  <div style="font-size:0.72rem;color:var(--muted);margin:-4px 0 12px;">
+    To-dos vivem nas notas (<code style="color:var(--accent2);background:var(--bg);padding:1px 5px;border-radius:3px;">- [ ] … 📅</code>) → agregam no TODO.md dentro do Obsidian.
+    <a href="obsidian://open?vault=agentic-os&amp;file=wiki/ideias/_index.md" style="color:var(--accent);text-decoration:none;">Ver backlog (MOC) →</a>
+  </div>
+  <div class="integrations">
+    <div class="integration-card">
+      <div class="int-icon">🖨</div>
+      <div>
+        <div class="int-name"><a href="obsidian://open?vault=agentic-os&amp;file=wiki/ideias/printing-press-vs-mcp.md" style="color:var(--accent);text-decoration:none;">Printing-press vs MCP</a></div>
+        <div class="int-status">Reviews Maps/TripAdvisor · poupar tokens</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">▶</div>
+      <div>
+        <div class="int-name"><a href="obsidian://open?vault=agentic-os&amp;file=wiki/ideias/cli-youtube-conteudo.md" style="color:var(--accent);text-decoration:none;">CLI análise YouTube</a></div>
+        <div class="int-status">Transcript + resumo (library quase resolve)</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">🎬</div>
+      <div>
+        <div class="int-name"><a href="obsidian://open?vault=agentic-os&amp;file=wiki/ideias/canal-youtube-revenue.md" style="color:var(--accent);text-decoration:none;">Canal YouTube (revenue)</a></div>
+        <div class="int-status">Validar ângulo → 3 vídeos piloto</div>
+      </div>
+    </div>
+    <div class="integration-card">
+      <div class="int-icon">📊</div>
+      <div>
+        <div class="int-name"><a href="obsidian://open?vault=agentic-os&amp;file=wiki/ideias/cli-analytics-pixel.md" style="color:var(--accent);text-decoration:none;">CLI Analytics + Pixel</a></div>
+        <div class="int-status">Skill tag-audit por site (GA4/Pixel)</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="main" id="view-skills" style="display:none;">
+  <div class="section-label">Skills instaladas</div>
+  <div class="skills-toolbar">
+    <input class="skills-search" id="skills-search" placeholder="Pesquisar por nome ou tarefa (ex: auditar seo)…" oninput="renderSkills()">
+    <label style="font-size:0.72rem;color:var(--muted);display:flex;align-items:center;gap:5px;cursor:pointer;">
+      <input type="checkbox" id="skills-overlaps-only" onchange="renderSkills()"> só overlaps
+    </label>
+  </div>
+  <div id="skills-areas" class="skills-toolbar"></div>
+  <div class="skills-meta" id="skills-meta"></div>
+  <div class="skills-grid" id="skills-grid"></div>
+</div>
+
+<script src="private/dashboard-token.js"></script>
+<script src="skills-data.js"></script>
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleDateString('pt-PT') + ' ' + now.toTimeString().slice(0,5);
+  }
+  updateClock();
+  setInterval(updateClock, 30000);
+
+  // Token
+  const TOKEN_KEY = 'cr_meta_token';
+  function getToken() {
+    const ls = localStorage.getItem(TOKEN_KEY);
+    if (ls) return ls;
+    // fallback: private/dashboard-token.js (gitignored) — sobrevive a perda de localStorage
+    const f = window.CR_META_TOKEN;
+    if (f && f !== 'COLA_AQUI_O_TOKEN') return f;
+    return '';
+  }
+  function updateTokenIndicator() {
+    const t = getToken();
+    const el = document.getElementById('token-indicator');
+    el.innerHTML = t
+      ? `<span class="token-ok">✓ token (${esc(t.substring(0,10))}…)</span>`
+      : `<span class="token-missing">⚠ sem token — clica ⚙ Tokens</span>`;
+  }
+
+  function openSettings() {
+    document.getElementById('meta-token-input').value = '';
+    document.getElementById('settings-modal').classList.add('open');
+  }
+  function closeSettings() {
+    document.getElementById('settings-modal').classList.remove('open');
+  }
+  function saveSettings() {
+    const t = document.getElementById('meta-token-input').value.trim();
+    if (t) { localStorage.setItem(TOKEN_KEY, t); }
+    closeSettings();
+    updateTokenIndicator();
+    refreshMeta();
+  }
+
+  // XSS escape
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  // Campaigns
+  const ACCOUNT = '789902546183546';
+  let campaigns = [];
+  let activeFilter = 'all';
+
+  function detectYear(c) {
+    const s = c.start_time || '';
+    if (s.startsWith('2026')) return '2026';
+    if (s.startsWith('2025')) return '2025';
+    return '';
+  }
+
+  function fmtBudget(c) {
+    const d = parseInt(c.daily_budget || 0) / 100;
+    const l = parseInt(c.lifetime_budget || 0) / 100;
+    if (d > 0) return `€${d.toFixed(0)}/dia`;
+    if (l > 0) return `€${l.toFixed(0)}`;
+    return '—';
+  }
+
+  function fmtDate(s) { return s ? s.split('T')[0] : '—'; }
+
+  function renderCampaigns() {
+    let filtered = campaigns;
+    if (activeFilter === '2026') filtered = campaigns.filter(c => detectYear(c) === '2026');
+    else if (activeFilter === '2025') filtered = campaigns.filter(c => detectYear(c) === '2025');
+    else if (activeFilter === 'active') filtered = campaigns.filter(c => (c.effective_status||c.status) === 'ACTIVE');
+
+    if (!filtered.length) {
+      document.getElementById('camp-container').innerHTML = '<p class="loader">Sem campanhas para este filtro.</p>';
+      return;
+    }
+
+    const rows = filtered.map(c => {
+      const yr = detectYear(c);
+      const yrTag = yr ? `<span class="year-tag">${esc(yr)}</span>` : '';
+      const st = esc((c.effective_status || c.status || '').replace(/[^A-Z_]/g,''));
+      return `<tr>
+        <td class="camp-name">${esc(c.name)}${yrTag}</td>
+        <td><span class="s-badge s-${st}">${st}</span></td>
+        <td style="color:var(--muted);font-size:0.75rem;">${esc((c.objective||'—').replace(/_/g,' '))}</td>
+        <td style="color:var(--accent);font-size:0.78rem;">${esc(fmtBudget(c))}</td>
+        <td style="color:var(--muted);font-size:0.75rem;">${esc(fmtDate(c.start_time))}</td>
+        <td style="color:var(--muted);font-size:0.75rem;">${esc(fmtDate(c.stop_time)) || 'em curso'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('camp-container').innerHTML = `
+      <table class="camp-table">
+        <thead><tr>
+          <th>Campanha</th><th>Estado</th><th>Objetivo</th><th>Orçamento</th><th>Início</th><th>Fim</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function updateSummaryStats() {
+    const active = campaigns.filter(c => (c.effective_status||c.status) === 'ACTIVE').length;
+    const paused = campaigns.filter(c => (c.effective_status||c.status) === 'PAUSED').length;
+    const y2026 = campaigns.filter(c => detectYear(c) === '2026').length;
+    document.getElementById('cr-meta-active').textContent = active;
+    document.getElementById('cr-meta-paused').textContent = paused;
+    document.getElementById('cr-2026-count').textContent = `${y2026}/5`;
+  }
+
+  function filterCamp(f) {
+    activeFilter = f;
+    ['all','2026','2025','active'].forEach(k => {
+      document.getElementById(`f-${k}`).classList.toggle('active', k === f);
+    });
+    renderCampaigns();
+  }
+
+  async function refreshMeta() {
+    const token = getToken();
+    if (!token) {
+      document.getElementById('camp-container').innerHTML =
+        '<p class="loader">⚠ Configura o Meta Ads token em ⚙ Tokens (canto superior direito).</p>';
+      return;
+    }
+    document.getElementById('camp-container').innerHTML = '<p class="loader">A carregar campanhas…</p>';
+    const fields = 'name,status,effective_status,objective,daily_budget,lifetime_budget,start_time,stop_time';
+    const url = `https://graph.facebook.com/v21.0/act_${ACCOUNT}/campaigns?fields=${encodeURIComponent(fields)}&limit=100`;
+    try {
+      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.error) {
+        document.getElementById('camp-container').innerHTML =
+          `<p class="err">Erro API: ${esc(data.error.message)}</p>`;
+        return;
+      }
+      campaigns = (data.data || []).sort((a,b) => (b.start_time||'').localeCompare(a.start_time||''));
+      updateSummaryStats();
+      renderCampaigns();
+    } catch (e) {
+      document.getElementById('camp-container').innerHTML =
+        `<p class="err">Erro de rede: ${esc(e.message)}</p>`;
+    }
+  }
+
+  // Init
+  updateTokenIndicator();
+  if (getToken()) refreshMeta();
+
+  // ---- Vista Skills ----
+  const SKILLS_ACTIVE_AREAS = new Set();
+
+  function norm(s) {
+    // lowercase + tira acentos (U+0300–U+036F = combining diacritics) para pesquisa
+    return (s || '').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  function switchView(name) {
+    document.getElementById('view-painel').style.display = (name === 'painel') ? '' : 'none';
+    document.getElementById('view-skills').style.display = (name === 'skills') ? '' : 'none';
+    document.getElementById('nav-painel').classList.toggle('active', name === 'painel');
+    document.getElementById('nav-skills').classList.toggle('active', name === 'skills');
+    if (name === 'skills') initSkills();
+  }
+
+  let skillsInited = false;
+  function initSkills() {
+    if (skillsInited) return;
+    const data = window.SKILLS_DATA;
+    const areasBox = document.getElementById('skills-areas');
+    if (!data) {
+      document.getElementById('skills-grid').innerHTML =
+        '<p class="err">skills-data.js em falta. Corre: <code>node scripts/build-skills-data.mjs --date ' +
+        new Date().toISOString().slice(0,10) + '</code></p>';
+      return;
+    }
+    // chips de área (só as que têm skills)
+    const present = data.areas.filter(a => (data.counts.byArea[a] || 0) > 0);
+    areasBox.innerHTML = present.map(a =>
+      `<span class="area-chip" data-area="${esc(a)}" onclick="toggleArea(this)">${esc(a)} (${data.counts.byArea[a]})</span>`
+    ).join('');
+    skillsInited = true;
+    renderSkills();
+  }
+
+  function toggleArea(el) {
+    const a = el.getAttribute('data-area');
+    if (SKILLS_ACTIVE_AREAS.has(a)) { SKILLS_ACTIVE_AREAS.delete(a); el.classList.remove('active'); }
+    else { SKILLS_ACTIVE_AREAS.add(a); el.classList.add('active'); }
+    renderSkills();
+  }
+
+  function renderSkills() {
+    const data = window.SKILLS_DATA;
+    if (!data) return;
+    const q = norm(document.getElementById('skills-search').value);
+    const overlapsOnly = document.getElementById('skills-overlaps-only').checked;
+    let list = data.skills;
+    if (SKILLS_ACTIVE_AREAS.size) list = list.filter(s => SKILLS_ACTIVE_AREAS.has(s.area));
+    if (overlapsOnly) list = list.filter(s => s.overlapGroup);
+    const tokens = q.split(/\s+/).filter(Boolean);
+    if (tokens.length) {
+      list = list.filter(s => {
+        const hay = norm(s.name) + ' ' + norm(s.description) + ' ' + s.tags.map(norm).join(' ');
+        return tokens.every(t => hay.includes(t));
+      });
+    }
+    document.getElementById('skills-meta').textContent =
+      `${list.length} de ${data.counts.total} skills · ${data.counts.overlaps} grupos overlap · gerado ${data.generated}`;
+    document.getElementById('skills-grid').innerHTML = list.map(s => `
+      <div class="skill-card" onclick="this.classList.toggle('open')">
+        <div class="skill-name">${esc(s.name)}</div>
+        <div class="skill-badges">
+          <span class="skill-badge">${esc(s.plugin)}</span>
+          <span class="skill-badge area">${esc(s.area)}</span>
+          ${s.overlapGroup ? '<span class="skill-badge overlap">⚠ overlap</span>' : ''}
+        </div>
+        <div class="skill-desc">${esc(s.description) || '<em>sem descrição</em>'}</div>
+        <div class="skill-tags">${s.tags.slice(0, 8).map(t => `<span class="skill-tag">${esc(t)}</span>`).join('')}</div>
+        <div class="skill-howto">
+          <div>Invocar: <code>Skill → ${esc(s.invoke)}</code></div>
+          ${s.triggers ? `<div style="margin-top:4px;color:var(--muted)">Triggers: ${esc(s.triggers)}</div>` : ''}
+        </div>
+      </div>
+    `).join('') || '<p class="loader">Nada encontrado.</p>';
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOC Tech Triage — GOAPI-Sprint 07 | 26jun</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --bg3: #334155;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: #475569;
+    --a: #ef4444;
+    --b: #f59e0b;
+    --c: #10b981;
+    --d: #6b7280;
+    --risk: #f97316;
+  }
+  [data-theme="light"] {
+    --bg: #f8fafc;
+    --bg2: #f1f5f9;
+    --bg3: #e2e8f0;
+    --text: #0f172a;
+    --text2: #475569;
+    --border: #cbd5e1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; }
+  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header .meta { color: var(--text2); font-size: 12px; }
+  .toggle-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+  .toggle-btn:hover { background: var(--border); }
+  .summary { display: flex; gap: 12px; padding: 20px 24px; flex-wrap: wrap; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; min-width: 140px; flex: 1; }
+  .card .num { font-size: 32px; font-weight: 800; }
+  .card .label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .card.total .num { color: var(--text); }
+  .card.ga .num { color: var(--a); }
+  .card.gb .num { color: var(--b); }
+  .card.gc .num { color: var(--c); }
+  .card.gd .num { color: var(--d); }
+  .content { padding: 0 24px 40px; }
+  details { margin-bottom: 16px; }
+  summary { cursor: pointer; padding: 14px 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 10px; list-style: none; user-select: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { background: var(--bg3); }
+  details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  .section-body { border: 1px solid var(--border); border-top: 0; border-radius: 0 0 8px 8px; overflow: hidden; }
+  .sprint-block { padding: 10px 16px 4px; background: var(--bg2); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+  .sprint-block:last-of-type { border-bottom: none; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .badge.risk { background: rgba(249,115,22,0.15); color: var(--risk); border: 1px solid var(--risk); }
+  .badge.overdue { background: rgba(239,68,68,0.15); color: var(--a); border: 1px solid var(--a); }
+  .badge.ok { background: rgba(16,185,129,0.15); color: var(--c); border: 1px solid var(--c); }
+  .badge.warn { background: rgba(245,158,11,0.15); color: var(--b); border: 1px solid var(--b); }
+  .badge.deadline { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid #a78bfa; }
+  .badge.inactivity { background: rgba(107,114,128,0.15); color: var(--d); border: 1px solid var(--d); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { background: var(--bg3); padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text2); position: sticky; top: 0; cursor: pointer; user-select: none; white-space: nowrap; }
+  thead th:hover { background: var(--border); }
+  thead th::after { content: ' ↕'; opacity: 0.4; font-size: 10px; }
+  thead th.asc::after { content: ' ↑'; opacity: 1; }
+  thead th.desc::after { content: ' ↓'; opacity: 1; }
+  tbody tr:nth-child(even) { background: var(--bg2); }
+  tbody tr:hover { background: var(--bg3); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td:last-child, th:last-child { border-bottom: none; }
+  .id { font-family: monospace; font-size: 12px; color: var(--text2); }
+  .subject { max-width: 320px; }
+  .status-chip { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600; }
+  .st-open { background: rgba(239,68,68,0.15); color: #fca5a5; }
+  .st-progress { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+  .st-qa { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .st-escalated { background: rgba(245,158,11,0.15); color: #fcd34d; }
+  .st-done { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+  .st-hold { background: rgba(107,114,128,0.15); color: #9ca3af; }
+  .st-nsa { background: rgba(168,85,247,0.15); color: #d8b4fe; }
+  .group-a summary { border-left: 4px solid var(--a); }
+  .group-b summary { border-left: 4px solid var(--b); }
+  .group-c summary { border-left: 4px solid var(--c); }
+  .group-d summary { border-left: 4px solid var(--d); }
+  .footer { text-align: center; color: var(--text2); font-size: 12px; padding: 20px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="header">
+  <div>
+    <h1>SPOC Tech Triage — GOAPI-Sprint 07 / ZBUN Sprint 47 | 26 Jun 2026</h1>
+    <div class="meta">Sprint fecha: 29 Jun 2026 &nbsp;·&nbsp; Gerado em: 26/06/2026 &nbsp;·&nbsp; 22 tickets analisados</div>
+  </div>
+  <button class="toggle-btn" onclick="toggleTheme()">☀️ / 🌙 Tema</button>
+</div>
+
+<div class="summary">
+  <div class="card total">
+    <div class="num">22</div>
+    <div class="label">Total tickets</div>
+  </div>
+  <div class="card ga">
+    <div class="num">13</div>
+    <div class="label">🔴 A — Sem SP/Open</div>
+  </div>
+  <div class="card gb">
+    <div class="num">4</div>
+    <div class="label">🟡 B — Sprint ativo</div>
+  </div>
+  <div class="card gc">
+    <div class="num">5</div>
+    <div class="label">🟤 C — JIRA Done</div>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- GROUP A -->
+<details class="group-a" open>
+  <summary>🔴 A — Sem Sprint / JIRA Open → Dar estimativa + BIZ PENDING <span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--text2)">13 tickets</span></summary>
+  <div class="section-body">
+    <table id="table-a">
+      <thead>
+        <tr>
+          <th onclick="sortTable('table-a',0)">ID</th>
+          <th onclick="sortTable('table-a',1)">Cliente</th>
+          <th onclick="sortTable('table-a',2)">Assunto</th>
+          <th onclick="sortTable('table-a',3)">POC</th>
+          <th onclick="sortTable('table-a',4)">Tipo</th>
+          <th onclick="sortTable('table-a',5)">Nota</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">SPOC24062026_01740</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Scraper de Reviews e Imagens — problema de Sessões de Browser</td>
+          <td>Francisco Soares</td>
+          <td>Incident</td>
+          <td><span class="badge warn">Sprint ZBUN47 — JIRA Open</span></td>
+        </tr>
+        <tr>
+          <td class="id">SPOC23062026_01736</td>
+          <td>Home_Sweet_Sushi</td>
+          <td class="subject">Pedido entrou e não respeitou a antecedência</td>
+          <td>Luísa Castro</td>
+          <td>Incident</td>
+          <td><span class="badge warn">Sprint GOAPI07 — JIRA Open</span></td>
+        </tr>
+        <tr>
+          <td class="id">SPOC25062026_01747</td>
+          <td>Home_Sushi_Viseu</td>
+          <td class="subject">Atualização Plugin Website <strong>29/6/2026</strong></td>
+          <td>Luísa Castro</td>
+          <td>Incident</td>
+          <td><span class="badge risk">⚠️ DATA 29/6 — URGENTE</span></td>
+        </tr>
+        <tr>
+          <td class="id">SPOC21062026_01719</td>
+          <td>Sushi_and_Poke</td>
+          <td class="subject">Pedidos para próprio dia com horários de entrega anteriores à submissão</td>
+          <td>Pedro Silva</td>
+          <td>Incident</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC21062026_01722</td>
+          <td>Home_Sweet_Sushi</td>
+          <td class="subject">Fazer manutenção às máquinas de HSS</td>
+          <td>Francisco Soares</td>
+          <td>Request</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC22062026_01724</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Tabelas de Logs demasiado grandes — timeout nos backups</td>
+          <td>Pedro Silva</td>
+          <td>Incident</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC22062026_01725</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Reativar sistema de Backups de BDs automático</td>
+          <td>Pedro Silva</td>
+          <td>Request</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC22062026_01726</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Storage principal para Backups Down — a usar storage redundante</td>
+          <td>Pedro Silva</td>
+          <td>Incident</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC22062026_01728</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Paulo colocou TO PRODUCTION → DONE sem sprint e sem story points</td>
+          <td>Pedro Silva</td>
+          <td>Incident</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC22062026_01729</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Acessos limitados a 5 utilizadores — repositórios bloqueiam a partir de Agosto</td>
+          <td>Luísa Castro</td>
+          <td>Incident</td>
+          <td><span class="badge deadline">⏰ Deadline Ago 15</span></td>
+        </tr>
+        <tr>
+          <td class="id">SPOC22062026_01730</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Problemas na ida para produção em HSS — PHP version divergente</td>
+          <td>Luísa Castro</td>
+          <td>Incident</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC24062026_01742</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Heineken brands delivery — novos data points e scrapers</td>
+          <td>Francisco Soares</td>
+          <td>Request</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC25062026_01748</td>
+          <td>Home_Sushi_Viseu</td>
+          <td class="subject">Atualização Website</td>
+          <td>Luísa Castro</td>
+          <td>Request</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+<!-- GROUP B -->
+<details class="group-b" open>
+  <summary>🟡 B — Sprint ativo/encerrado → Acompanhar / Reclassificar <span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--text2)">4 tickets</span></summary>
+  <div class="section-body">
+
+    <div class="sprint-block">
+      GOAPI-Sprint 07 | 15jun–29jun &nbsp;
+      <span class="badge risk">⚠️ 3 dias restantes</span>
+    </div>
+    <table id="table-b1">
+      <thead>
+        <tr>
+          <th onclick="sortTable('table-b1',0)">ID</th>
+          <th onclick="sortTable('table-b1',1)">Cliente</th>
+          <th onclick="sortTable('table-b1',2)">Assunto</th>
+          <th onclick="sortTable('table-b1',3)">JIRA Status</th>
+          <th onclick="sortTable('table-b1',4)">POC</th>
+          <th onclick="sortTable('table-b1',5)">Risco</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">SPOC19022026_00984</td>
+          <td>Home_Sweet_Sushi</td>
+          <td class="subject">Regra de oferta no checkout</td>
+          <td><span class="status-chip st-qa">QA</span></td>
+          <td>Daniela Fernandes</td>
+          <td><span class="badge risk">⚠️ RISCO — 3 dias</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sprint-block" style="margin-top:8px;">
+      ZBUN Sprint 47 | 15jun–29jun &nbsp;
+      <span class="badge risk">⚠️ 3 dias restantes</span>
+    </div>
+    <table id="table-b2">
+      <thead>
+        <tr>
+          <th onclick="sortTable('table-b2',0)">ID</th>
+          <th onclick="sortTable('table-b2',1)">Cliente</th>
+          <th onclick="sortTable('table-b2',2)">Assunto</th>
+          <th onclick="sortTable('table-b2',3)">JIRA Status</th>
+          <th onclick="sortTable('table-b2',4)">POC</th>
+          <th onclick="sortTable('table-b2',5)">Risco</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">SPOC24062026_01741</td>
+          <td>DIG-IN_Geral</td>
+          <td class="subject">Equipar Maestro com Skill para identificação e melhoria de logs</td>
+          <td><span class="status-chip st-progress">In Progress</span></td>
+          <td>Ruben Valente</td>
+          <td><span class="badge risk">⚠️ RISCO — 3 dias</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sprint-block" style="margin-top:8px;">
+      GOAPI-Sprint 06 | 4mai–18mai &nbsp;
+      <span class="badge overdue">🔴 Sprint encerrado há 39 dias</span>
+    </div>
+    <table id="table-b3">
+      <thead>
+        <tr>
+          <th onclick="sortTable('table-b3',0)">ID</th>
+          <th onclick="sortTable('table-b3',1)">Cliente</th>
+          <th onclick="sortTable('table-b3',2)">Assunto</th>
+          <th onclick="sortTable('table-b3',3)">JIRA Status</th>
+          <th onclick="sortTable('table-b3',4)">POC</th>
+          <th onclick="sortTable('table-b3',5)">Risco</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">SPOC27042026_01366</td>
+          <td>Sushi_and_Poke</td>
+          <td class="subject">Confirmar se NIF está a passar corretamente para a Grubtech</td>
+          <td><span class="status-chip st-escalated">Escalated</span></td>
+          <td>Daniela Fernandes</td>
+          <td><span class="badge overdue">🔴 Sprint encerrado</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sprint-block" style="margin-top:8px;">
+      GOAPI-Sprint 05 | 18mai–1jun &nbsp;
+      <span class="badge overdue">🔴 Sprint encerrado há 25 dias</span>
+    </div>
+    <table id="table-b4">
+      <thead>
+        <tr>
+          <th onclick="sortTable('table-b4',0)">ID</th>
+          <th onclick="sortTable('table-b4',1)">Cliente</th>
+          <th onclick="sortTable('table-b4',2)">Assunto</th>
+          <th onclick="sortTable('table-b4',3)">JIRA Status</th>
+          <th onclick="sortTable('table-b4',4)">POC</th>
+          <th onclick="sortTable('table-b4',5)">Risco</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">SPOC03032026_01077</td>
+          <td>Sushi_at_Home</td>
+          <td class="subject">Falha na sincronização de consentimento de comunicação de marketing</td>
+          <td><span class="status-chip st-escalated">Escalated</span></td>
+          <td>Daniela Fernandes</td>
+          <td><span class="badge overdue">🔴 Sprint encerrado + ticket Mar/2026</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+</details>
+
+<!-- GROUP C -->
+<details class="group-c" open>
+  <summary>🟤 C — JIRA Done mas SPOC aberto → Fechar no SPOC <span style="margin-left:auto;font-size:12px;font-weight:400;color:var(--text2)">5 tickets</span></summary>
+  <div class="section-body">
+    <table id="table-c">
+      <thead>
+        <tr>
+          <th onclick="sortTable('table-c',0)">ID</th>
+          <th onclick="sortTable('table-c',1)">Cliente</th>
+          <th onclick="sortTable('table-c',2)">Assunto</th>
+          <th onclick="sortTable('table-c',3)">SPOC Status</th>
+          <th onclick="sortTable('table-c',4)">POC</th>
+          <th onclick="sortTable('table-c',5)">Nota</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="id">SPOC08012026_00704</td>
+          <td>Casavostra</td>
+          <td class="subject">Integração com Grubtech</td>
+          <td><span class="status-chip st-hold">On Hold</span></td>
+          <td>Daniela Fernandes</td>
+          <td><span class="badge inactivity">Ticket Jan/2026 — Sprint 44. Candidato a fechar por inatividade</span></td>
+        </tr>
+        <tr>
+          <td class="id">SPOC20022026_01003</td>
+          <td>Home_Sweet_Sushi</td>
+          <td class="subject">Faturação Checkout</td>
+          <td><span class="status-chip st-nsa">Needs Support Action</span></td>
+          <td>Daniela Fernandes</td>
+          <td>JIRA Done + Canceled</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC20022026_01004</td>
+          <td>Home_Sweet_Sushi</td>
+          <td class="subject">Perfil de Cliente — Encomenda Ativa</td>
+          <td><span class="status-chip st-nsa">Needs Support Action</span></td>
+          <td>Daniela Fernandes</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC28042026_01382</td>
+          <td>Sushi_at_Home</td>
+          <td class="subject">BD clientes Odivelas 2025 — nome e telefone</td>
+          <td><span class="status-chip st-nsa">Needs Support Action</span></td>
+          <td>Pedro Silva</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td class="id">SPOC06052026_01460</td>
+          <td>Sushi_at_Home</td>
+          <td class="subject">Depósito SDR obrigatório</td>
+          <td><span class="status-chip st-nsa">Needs Support Action</span></td>
+          <td>Daniela Fernandes</td>
+          <td>—</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</details>
+
+</div>
+
+<div class="footer">
+  SPOC Tech Triage &nbsp;·&nbsp; 26 Jun 2026 &nbsp;·&nbsp; Gerado por Enterprise Architect Agent
+</div>
+
+<script>
+function toggleTheme() {
+  const el = document.body;
+  el.dataset.theme = el.dataset.theme === 'dark' ? 'light' : 'dark';
+}
+
+function sortTable(tableId, col) {
+  const table = document.getElementById(tableId);
+  const tbody = table.querySelector('tbody');
+  const th = table.querySelectorAll('th')[col];
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const asc = th.classList.contains('asc');
+
+  table.querySelectorAll('th').forEach(h => h.classList.remove('asc','desc'));
+  th.classList.add(asc ? 'desc' : 'asc');
+
+  rows.sort((a, b) => {
+    const av = a.cells[col]?.textContent.trim() ?? '';
+    const bv = b.cells[col]?.textContent.trim() ?? '';
+    const an = parseFloat(a.cells[col]?.dataset.val ?? av);
+    const bn = parseFloat(b.cells[col]?.dataset.val ?? bv);
+    const numeric = !isNaN(an) && !isNaN(bn);
+    const cmp = numeric ? an - bn : av.localeCompare(bv, 'pt');
+    return asc ? -cmp : cmp;
+  });
+
+  rows.forEach(r => tbody.appendChild(r));
+}
+</script>
+</body>
+</html>

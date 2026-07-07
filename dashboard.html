@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0d0f12;
+    --surface: #13161b;
+    --surface2: #1a1e25;
+    --border: rgba(255,255,255,0.06);
+    --border-hover: rgba(255,255,255,0.14);
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --accent-work: #4a9eff;
+    --accent-agents: #a78bfa;
+    --accent-data: #34d399;
+    --accent-home: #f59e0b;
+    --accent-gaming: #f43f5e;
+    --accent-infra: #06b6d4;
+    --accent-sprint: #fb923c;
+    --accent-reports:       #e879f9;
+    --accent-checklist:     #facc15;
+    --accent-announcements: #f97316;
+    --accent-news:          #38bdf8;
+    --accent-music:         #c084fc;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* Subtle grid bg */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -30vh; left: 30%;
+    width: 60vw; height: 60vh;
+    background: radial-gradient(ellipse, rgba(74,158,255,0.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    padding: 32px 40px 28px;
+    gap: 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .clock-block { line-height: 1; }
+
+  .time {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(3rem, 7vw, 5.5rem);
+    font-weight: 400;
+    letter-spacing: -2px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .date {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .greeting {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(1rem, 2vw, 1.35rem);
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.3;
+  }
+
+  /* SESSION BANNER */
+  .session-banner {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 18px;
+    background: var(--surface);
+    border: 1px solid rgba(6,182,212,0.3);
+    border-radius: 12px;
+    animation: fadeUp 0.4s ease both;
+    box-shadow: 0 0 24px rgba(6,182,212,0.08);
+  }
+
+  .session-banner.active { display: flex; }
+
+  .session-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .session-pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent-infra);
+    box-shadow: 0 0 8px var(--accent-infra);
+    flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  .session-hold-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    opacity: 0.5;
+  }
+
+  .session-item.hold .session-label { color: var(--muted); }
+  .session-item.hold .session-name  { opacity: 0.5; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  .session-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-infra);
+    flex-shrink: 0;
+  }
+
+  .session-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .session-cwd {
+    flex: 1;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .session-id {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
+
+  .session-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .session-rc-link {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--accent-infra);
+    text-decoration: none;
+    flex-shrink: 0;
+    opacity: 0.85;
+    border: 1px solid rgba(6,182,212,0.35);
+    border-radius: 4px;
+    padding: 1px 5px;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+  .session-rc-link:hover { opacity: 1; border-color: var(--accent-infra); }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-template-rows: auto auto auto;
+    gap: 14px;
+  }
+
+  /* SECTIONS */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 22px 18px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    animation: fadeUp 0.5s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Color accent lines on hover — set via --section-accent per element by JS */
+  .section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--section-accent, #888), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .section:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 40px var(--section-glow, rgba(136,136,136,0.15));
+  }
+  .section:hover::before { opacity: 1; }
+
+  /* Stagger */
+  .section:nth-child(1) { animation-delay: 0.05s; }
+  .section:nth-child(2) { animation-delay: 0.10s; }
+  .section:nth-child(3) { animation-delay: 0.15s; }
+  .section:nth-child(4) { animation-delay: 0.20s; }
+  .section:nth-child(5) { animation-delay: 0.25s; }
+  .section:nth-child(6) { animation-delay: 0.30s; }
+  .section:nth-child(7) { animation-delay: 0.35s; }
+  .section:nth-child(8) { animation-delay: 0.40s; }
+
+
+  /* Section label */
+  .label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .section .dot { background: var(--section-accent, #888); box-shadow: 0 0 8px var(--section-accent, #888); }
+
+  .label-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Links */
+  .links { display: grid; grid-template-columns: 1fr; gap: 4px; }
+
+  a.link {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: background 0.18s, border-color 0.18s, transform 0.15s;
+    font-size: 0.88rem;
+    font-weight: 400;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  a.link:hover {
+    background: var(--surface2);
+    border-color: var(--border);
+    transform: translateX(3px);
+  }
+
+  .link-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    font-style: normal;
+  }
+
+  .section .link-icon { background: var(--section-icon-bg, rgba(255,255,255,0.08)); }
+
+  .link-name { flex: 1; }
+
+  .link-arrow {
+    font-size: 10px;
+    color: var(--muted);
+    opacity: 0;
+    transition: opacity 0.15s;
+    font-family: 'DM Mono', monospace;
+  }
+
+  a.link:hover .link-arrow { opacity: 1; }
+
+
+  /* FOOTER */
+  footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    animation: fadeUp 0.6s 0.3s ease both;
+    opacity: 0;
+    animation-fill-mode: both;
+  }
+
+  .footer-tip {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  .footer-line {
+    height: 1px;
+    flex: 1;
+    margin: 0 20px;
+    background: var(--border);
+  }
+
+  .focus-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: 1fr; }
+    .links { grid-template-columns: 1fr !important; }
+  }
+
+  /* CHECKLIST */
+  .checklist-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .checklist-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px;
+    cursor: pointer; border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+  .checklist-item:hover { background: var(--surface2); border-color: var(--border); }
+  .checklist-check {
+    width: 16px; height: 16px; border-radius: 4px;
+    border: 1.5px solid var(--muted); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 10px;
+  }
+  .checklist-item.done .checklist-check {
+    background: var(--section-accent, #888);
+    border-color: var(--section-accent, #888);
+  }
+  .checklist-text { flex: 1; font-size: 0.85rem; line-height: 1.3; }
+  .checklist-item.done .checklist-text { text-decoration: line-through; color: var(--muted); }
+  .checklist-copy {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 0.8rem; padding: 0 4px;
+    opacity: 0; transition: opacity 0.15s, color 0.15s;
+    line-height: 1;
+  }
+  .checklist-item:hover .checklist-copy { opacity: 1; }
+  .checklist-copy:hover { color: var(--text); }
+  .checklist-delete {
+    opacity: 0; background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 14px; padding: 2px 4px;
+    border-radius: 4px; transition: opacity 0.15s, color 0.15s;
+  }
+  .checklist-item:hover .checklist-delete { opacity: 1; }
+  .checklist-delete:hover { color: var(--text); }
+  .checklist-add { display: flex; gap: 8px; }
+  .checklist-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; color: var(--text);
+    font-family: 'Outfit', sans-serif; font-size: 0.85rem;
+    outline: none; transition: border-color 0.15s;
+  }
+  .checklist-input:focus { border-color: var(--section-accent, #888); }
+  .checklist-input::placeholder { color: var(--muted); }
+  .checklist-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.82rem;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .checklist-btn:hover { border-color: var(--section-accent, #888); background: var(--surface); }
+
+  /* ANNOUNCEMENTS */
+  .announcement-list { display: flex; flex-direction: column; gap: 6px; }
+  .announcement-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+    animation: fadeUp 0.3s ease both;
+  }
+  .announcement-body { flex: 1; min-width: 0; }
+  .announcement-source {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--section-accent, #888); margin-bottom: 4px;
+  }
+  .announcement-text { font-size: 0.85rem; line-height: 1.4; }
+  .announcement-dismiss {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 14px; flex-shrink: 0;
+    padding: 0 2px; opacity: 0.6; transition: opacity 0.15s;
+  }
+  .announcement-dismiss:hover { opacity: 1; }
+  .announcement-empty {
+    color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 0.78rem; padding: 8px 0;
+  }
+
+  /* NEWS */
+  .news-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; max-height: 320px; }
+  .news-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px; border-radius: 10px;
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+    cursor: pointer;
+  }
+  .news-item:hover { background: var(--surface2); border-color: var(--border); }
+  .news-item.read .news-title { color: var(--muted); }
+  .news-meta {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.08em; color: var(--section-accent, #888);
+    margin-bottom: 3px; display: flex; gap: 8px;
+  }
+  .news-title { font-size: 0.85rem; line-height: 1.4; }
+  .news-delete {
+    opacity: 0; background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 13px; padding: 2px 4px;
+    border-radius: 4px; transition: opacity 0.15s;
+    flex-shrink: 0; align-self: flex-start;
+  }
+  .news-item:hover .news-delete { opacity: 1; }
+  .news-empty {
+    color: var(--muted); font-family: 'DM Mono', monospace;
+    font-size: 0.78rem; padding: 8px 0;
+  }
+  .news-add { display: flex; gap: 6px; margin-top: 10px; }
+  .news-add-url {
+    flex: 2; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.75rem; outline: none;
+  }
+  .news-add-title {
+    flex: 3; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; color: var(--text);
+    font-size: 0.78rem; outline: none;
+  }
+  .news-add-url:focus, .news-add-title:focus { border-color: var(--section-accent, #888); }
+  .news-add-url::placeholder, .news-add-title::placeholder { color: var(--muted); }
+  .news-add-btn {
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); cursor: pointer; padding: 6px 12px; font-size: 16px;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .news-add-btn:hover { border-color: var(--section-accent, #888); color: var(--text); }
+
+  /* MUSIC */
+  .music-list { display: flex; flex-direction: column; gap: 4px; }
+  .music-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 10px;
+    text-decoration: none; color: var(--text);
+    border: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  }
+  .music-item:hover { background: var(--surface2); border-color: var(--border); transform: translateX(3px); }
+  .music-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: var(--section-icon-bg, rgba(255,255,255,0.08));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+  }
+  .music-body { flex: 1; min-width: 0; }
+  .music-title { font-size: 0.85rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .music-artist { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--muted); margin-top: 2px; }
+  .music-arrow { font-size: 10px; color: var(--muted); opacity: 0; transition: opacity 0.15s; font-family: 'DM Mono', monospace; }
+  .music-item:hover .music-arrow { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="clock-block">
+      <div class="time" id="clock">00:00</div>
+      <div class="date" id="dateline">—</div>
+    </div>
+    <div class="greeting" id="greeting">Bom dia.</div>
+  </header>
+
+  <div class="session-banner" id="session-banner">
+    <div id="session-list"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    <span class="footer-tip" id="day-tip">—</span>
+    <div class="footer-line"></div>
+    <span class="focus-badge" id="focus-text">Lisboa</span>
+  </footer>
+
+</div>
+
+<script>
+// ── Locale ──────────────────────────────────────────────────────────────
+const LOCALE_DATA = {
+  pt: {
+    days:      ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'],
+    months:    ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'],
+    dateFmt:   (day, date, month, year) => `${day}, ${date} de ${month} de ${year}`,
+    tips:      ['Semana começa amanhã.','Bom trabalho, segunda!','Quarta-feira, meio da semana.','Já passou do meio!','Sexta está perto.','Fim de semana! 🎉','Descansas, mereces.'],
+    greetings: ['Bom dia.','Boa tarde.','Boa noite.'],
+  },
+  en: {
+    days:      ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+    months:    ['January','February','March','April','May','June','July','August','September','October','November','December'],
+    dateFmt:   (day, date, month, year) => `${day}, ${month} ${date}, ${year}`,
+    tips:      ['Week starts tomorrow.','Good work, Monday!','Hump day.','Past the middle!','Friday is near.','Weekend! 🎉','Rest, you deserve it.'],
+    greetings: ['Good morning.','Good afternoon.','Good evening.'],
+  },
+};
+
+let appLocale = 'pt';
+let appCity   = 'Lisboa';
+let appName   = '';
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function tick() {
+  const now = new Date();
+  const h = pad(now.getHours()), m = pad(now.getMinutes());
+  document.getElementById('clock').textContent = `${h}:${m}`;
+
+  const L = LOCALE_DATA[appLocale] || LOCALE_DATA.pt;
+  const day   = L.days[now.getDay()];
+  const month = L.months[now.getMonth()];
+  document.getElementById('dateline').textContent = L.dateFmt(day, now.getDate(), month, now.getFullYear());
+
+  const hr = now.getHours();
+  const greet = hr < 12 ? L.greetings[0] : hr < 18 ? L.greetings[1] : L.greetings[2];
+  document.getElementById('greeting').textContent = appName ? greet.replace(/\.$/, '') + ', ' + appName + '.' : greet;
+  document.getElementById('day-tip').textContent  = L.tips[now.getDay()];
+  document.getElementById('focus-text').textContent = `${appCity} · ${h}:${m}`;
+}
+
+// ── Session polling (unchanged logic) ───────────────────────────────────
+function shortModel(m) {
+  if (!m) return '';
+  if (m.includes('opus'))   return 'opus';
+  if (m.includes('sonnet')) return 'sonnet';
+  if (m.includes('haiku'))  return 'haiku';
+  return '';
+}
+
+function pollSessions() {
+  fetch('session-data.json?t=' + Date.now())
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(data => {
+      const sessions = (data.sessions || []).filter(s => s.active);
+      const banner = document.getElementById('session-banner');
+      const list   = document.getElementById('session-list');
+      if (sessions.length === 0) { banner.classList.remove('active'); return; }
+      banner.classList.add('active');
+      list.innerHTML = sessions.map(s => {
+        const folder   = s.cwd ? s.cwd.replace(/\/+$/, '').split('/').pop() : '—';
+        const fullPath = s.cwd || '—';
+        const shortId  = s.session_id ? s.session_id.slice(0, 8) : '';
+        const time     = s.last_active ? new Date(s.last_active).toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'}) : '';
+        const name     = s.name || folder;
+        const branch   = s.git_branch ? s.git_branch.replace(/^feature\/[^/]+\//, '') : '';
+        const model    = shortModel(s.model);
+        return `<div class="session-item">
+          <span class="session-pulse"></span>
+          <span class="session-label">Active</span>
+          <span class="session-name">${name}</span>
+          <span class="session-cwd" title="${fullPath}">${fullPath}</span>
+          ${branch ? `<span class="session-id">⎇ ${branch}</span>` : `<span class="session-id">${shortId}</span>`}
+          ${model  ? `<span class="session-time">${model}</span>` : ''}
+          <span class="session-time">${time}</span>
+          ${s.rc_url && /^https?:\/\//.test(s.rc_url) ? `<a class="session-rc-link" href="${s.rc_url}" target="_blank">↗ RC</a>` : ''}
+        </div>`;
+      }).join('');
+    })
+    .catch(() => {});
+}
+
+function pollReports() {
+  fetch('reports/reports-index.json?t=' + Date.now())
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(data => {
+      const el = document.getElementById('reports-links');
+      if (!el) return;
+      if (!data.length) {
+        el.innerHTML = '<span style="color:var(--muted);font-size:0.78rem;font-family:\'DM Mono\',monospace;">No reports yet.</span>';
+        return;
+      }
+      el.innerHTML = data.filter(r => r.file && !/^(?!https?:\/\/)[\w+.-]+:/i.test(r.file)).map(r => `<a class="link" href="${r.file}" target="_blank">
+        <span class="link-icon">📄</span>
+        <span class="link-name">${r.title || r.name}</span>
+        <span class="link-arrow">↗</span>
+      </a>`).join('');
+    })
+    .catch(() => {
+      const el = document.getElementById('reports-links');
+      if (el) el.innerHTML = '<span style="color:var(--muted);font-size:0.78rem;font-family:\'DM Mono\',monospace;">No reports found.</span>';
+    });
+}
+
+// ── Config-driven rendering ──────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Checklist ────────────────────────────────────────────────────────────
+function pollChecklist() {
+  fetch('/api/checklist?t=' + Date.now())
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(items => {
+      const el = document.getElementById('checklist-items');
+      if (!el) return;
+      el.innerHTML = items.map(item => `
+        <div class="checklist-item${item.checked ? ' done' : ''}" onclick="toggleChecklist('${escAttr(item.id)}', this)">
+          <span class="checklist-check">${item.checked ? '✓' : ''}</span>
+          <span class="checklist-text">${escHtml(item.text)}</span>
+          <button class="checklist-copy" onclick="event.stopPropagation();copyChecklistItem(this,'${escAttr(item.text)}')" title="Copy">⎘</button>
+          <button class="checklist-delete" onclick="event.stopPropagation();deleteChecklistItem('${escAttr(item.id)}',this)">✕</button>
+        </div>`).join('');
+    })
+    .catch(() => {});
+}
+
+function toggleChecklist(id, el) {
+  const done = el.classList.contains('done');
+  fetch(`/api/checklist/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({checked: !done}),
+  })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(item => {
+      el.classList.toggle('done', item.checked);
+      el.querySelector('.checklist-check').textContent = item.checked ? '✓' : '';
+    })
+    .catch(() => {});
+}
+
+function copyChecklistItem(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const prev = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = prev; }, 1200);
+  }).catch(() => {});
+}
+
+function deleteChecklistItem(id, btn) {
+  fetch(`/api/checklist/${id}`, { method: 'DELETE' })
+    .then(r => { if (!r.ok && r.status !== 404) throw new Error(r.statusText); })
+    .then(() => { btn.closest('.checklist-item').remove(); })
+    .catch(() => {});
+}
+
+function addChecklistItem(input) {
+  const text = input.value.trim();
+  if (!text) return;
+  fetch('/api/checklist', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text}),
+  })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(() => { input.value = ''; pollChecklist(); })
+    .catch(() => {});
+}
+
+// ── Announcements ─────────────────────────────────────────────────────────
+function pollAnnouncements() {
+  fetch('/api/announcements?t=' + Date.now())
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(items => {
+      const el = document.getElementById('announcements-items');
+      if (!el) return;
+      if (!items.length) {
+        el.innerHTML = '<div class="announcement-empty">No announcements.</div>';
+        return;
+      }
+      el.innerHTML = items.map(item => `
+        <div class="announcement-item" data-id="${escAttr(item.id)}">
+          <div class="announcement-body">
+            <div class="announcement-source">${escHtml(item.source || 'manual')}</div>
+            <div class="announcement-text">${escHtml(item.text)}</div>
+          </div>
+          <button class="announcement-dismiss" onclick="dismissAnnouncement('${escAttr(item.id)}',this)" title="Dismiss">✕</button>
+        </div>`).join('');
+    })
+    .catch(() => {});
+}
+
+function dismissAnnouncement(id, btn) {
+  fetch(`/api/announcements/${id}/dismiss`, { method: 'PATCH' })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); })
+    .then(() => { btn.closest('.announcement-item').remove(); })
+    .catch(() => {});
+}
+
+// ── News ──────────────────────────────────────────────────────────────────
+function pollNews() {
+  fetch('/api/news?t=' + Date.now())
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(items => {
+      const el = document.getElementById('news-items');
+      if (!el) return;
+      if (!items.length) { el.innerHTML = '<div class="news-empty">No articles yet.</div>'; return; }
+      el.innerHTML = items.map(item => `
+        <div class="news-item${item.read ? ' read' : ''}" data-id="${escAttr(item.id)}" data-url="${escAttr(item.url)}" onclick="openNews(this)">
+          <div style="flex:1;min-width:0;">
+            <div class="news-meta">
+              ${item.source ? `<span>${escHtml(item.source)}</span>` : ''}
+              ${item.date   ? `<span>${escHtml(item.date)}</span>`   : ''}
+            </div>
+            <div class="news-title">${escHtml(item.title)}</div>
+          </div>
+          <button class="news-delete" onclick="event.stopPropagation();deleteNews('${escAttr(item.id)}',this)" title="Remove">✕</button>
+        </div>`).join('');
+    }).catch(() => {});
+}
+
+function openNews(el) {
+  const url = el.dataset.url;
+  if (!url || !/^https?:\/\//i.test(url)) return;
+  fetch(`/api/news/${el.dataset.id}/read`, { method: 'PATCH' }).catch(() => {});
+  window.open(url, '_blank', 'noopener');
+  el.classList.add('read');
+}
+
+function deleteNews(id, btn) {
+  fetch(`/api/news/${id}`, { method: 'DELETE' })
+    .then(r => { if (!r.ok && r.status !== 404) throw new Error(r.statusText); })
+    .then(() => { btn.closest('.news-item').remove(); })
+    .catch(() => {});
+}
+
+function addNewsItem() {
+  const urlEl   = document.getElementById('news-add-url');
+  const titleEl = document.getElementById('news-add-title');
+  const url   = (urlEl?.value || '').trim();
+  const title = (titleEl?.value || '').trim();
+  if (!url || !/^https?:\/\//i.test(url)) { urlEl?.focus(); return; }
+  const body = { url, title: title || new URL(url).hostname };
+  fetch('/api/news', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(() => {
+      if (urlEl)   urlEl.value   = '';
+      if (titleEl) titleEl.value = '';
+      pollNews();
+    })
+    .catch(() => {});
+}
+
+// ── Music ─────────────────────────────────────────────────────────────────
+function pollMusic() {
+  fetch('/api/music?t=' + Date.now())
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(items => {
+      const el = document.getElementById('music-items');
+      if (!el) return;
+      if (!items.length) { el.innerHTML = '<div class="news-empty">No tracks yet.</div>'; return; }
+      el.innerHTML = items.map(item => {
+        if (!/^https?:\/\//i.test(item.url)) return '';
+        return `<a class="music-item" href="${escAttr(item.url)}" target="_blank" rel="noopener">
+          <span class="music-icon">${escHtml(item.icon || '🎵')}</span>
+          <div class="music-body">
+            <div class="music-title">${escHtml(item.title)}</div>
+            ${item.artist ? `<div class="music-artist">${escHtml(item.artist)}</div>` : ''}
+          </div>
+          <span class="music-arrow">↗</span>
+        </a>`;
+      }).join('');
+    }).catch(() => {});
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function buildGridStylesheet(sections) {
+  const rules = sections.map(s =>
+    `#${s.id} { grid-column: ${s.grid.col}; grid-row: ${s.grid.row}; }`
+  ).join('\n');
+  const mobileRules = sections.map(s => `#${s.id} { grid-column: 1 / -1; }`).join('\n  ');
+  return `${rules}\n@media (max-width: 900px) {\n  .grid { grid-template-columns: repeat(6, 1fr); }\n}\n@media (max-width: 600px) {\n  ${mobileRules}\n}`;
+}
+
+function renderSection(section) {
+  const colStyle = section.linksColumns > 1
+    ? ` style="grid-template-columns: repeat(${section.linksColumns}, 1fr);"`
+    : '';
+
+  if (section.type === 'checklist') {
+    return `<div id="${section.id}" class="section">
+      <div class="label">
+        <span class="dot"></span>
+        <span class="label-text">${section.label}</span>
+      </div>
+      <div class="checklist-list" id="checklist-items"></div>
+      <div class="checklist-add">
+        <input class="checklist-input" id="checklist-input" type="text" placeholder="Add item…"
+          onkeydown="if(event.key==='Enter') addChecklistItem(this)">
+        <button class="checklist-btn" onclick="addChecklistItem(document.getElementById('checklist-input'))">+</button>
+      </div>
+    </div>`;
+  }
+
+  if (section.type === 'announcements') {
+    return `<div id="${section.id}" class="section">
+      <div class="label">
+        <span class="dot"></span>
+        <span class="label-text">${section.label}</span>
+      </div>
+      <div class="announcement-list" id="announcements-items">
+        <div class="announcement-empty">Loading…</div>
+      </div>
+    </div>`;
+  }
+
+  if (section.type === 'news') {
+    return `<div id="${section.id}" class="section">
+      <div class="label"><span class="dot"></span><span class="label-text">${section.label}</span></div>
+      <div class="news-list" id="news-items"><div class="news-empty">Loading…</div></div>
+      <div class="news-add">
+        <input class="news-add-url" id="news-add-url" type="url" placeholder="URL…"
+          onkeydown="if(event.key==='Enter') addNewsItem()">
+        <input class="news-add-title" id="news-add-title" type="text" placeholder="Title (optional)"
+          onkeydown="if(event.key==='Enter') addNewsItem()">
+        <button class="news-add-btn" onclick="addNewsItem()" title="Add article">+</button>
+      </div>
+    </div>`;
+  }
+
+  if (section.type === 'music') {
+    return `<div id="${section.id}" class="section">
+      <div class="label"><span class="dot"></span><span class="label-text">${section.label}</span></div>
+      <div class="music-list" id="music-items"><div class="news-empty">Loading…</div></div>
+    </div>`;
+  }
+
+  if (section.type === 'dynamic') {
+    return `<div id="${section.id}" class="section">
+      <div class="label">
+        <span class="dot"></span>
+        <span class="label-text">${section.label}</span>
+      </div>
+      <div class="links" id="${section.id}-links">
+        <span style="color:var(--muted);font-size:0.78rem;font-family:'DM Mono',monospace;">Loading…</span>
+      </div>
+    </div>`;
+  }
+
+  const links = (section.links || []).filter(link => link.url && !/^(?!https?:\/\/)[\w+.-]+:/i.test(link.url)).map(link =>
+    `<a class="link" href="${link.url}" target="_blank">
+      <span class="link-icon">${escHtml(link.icon)}</span>
+      <span class="link-name">${link.name}</span>
+      <span class="link-arrow">↗</span>
+    </a>`
+  ).join('');
+
+  return `<div id="${section.id}" class="section">
+    <div class="label">
+      <span class="dot"></span>
+      <span class="label-text">${section.label}</span>
+    </div>
+    <div class="links"${colStyle}>${links}</div>
+  </div>`;
+}
+
+async function loadConfig() {
+  let config;
+  try {
+    const r = await fetch('dashboard-config.json?t=' + Date.now());
+    if (!r.ok) throw new Error(r.status);
+    config = await r.json();
+  } catch {
+    document.getElementById('grid').innerHTML =
+      `<div style="grid-column:1/-1;padding:32px;color:var(--muted);font-family:'DM Mono',monospace;font-size:0.82rem;line-height:1.8;">
+        <strong style="color:var(--text)">dashboard-config.json not found</strong><br>
+        Run <code style="color:var(--text);background:var(--surface2);padding:2px 6px;border-radius:4px;">./install.sh</code> from the repo root to set up.
+      </div>`;
+    return;
+  }
+
+  // Apply user
+  if (config.user?.locale) appLocale = config.user.locale;
+  if (config.user?.city)   appCity   = config.user.city;
+  if (config.user?.name)   appName   = config.user.name;
+  tick();
+
+  // Inject accent + glow CSS vars into :root
+  const root = document.documentElement;
+  if (config.theme?.accents) {
+    for (const [key, hex] of Object.entries(config.theme.accents)) {
+      root.style.setProperty(`--accent-${key}`, hex);
+      root.style.setProperty(`--glow-${key}`, hexToRgba(hex, 0.15));
+    }
+  }
+
+  // Generate grid placement stylesheet
+  const sections = config.sections || [];
+  const styleEl = document.createElement('style');
+  styleEl.id = 'grid-layout';
+  styleEl.textContent = buildGridStylesheet(sections);
+  document.head.appendChild(styleEl);
+
+  // Render sections
+  const grid = document.getElementById('grid');
+  grid.innerHTML = sections.map(renderSection).join('');
+
+  // Apply per-section CSS custom properties
+  for (const section of sections) {
+    const el = document.getElementById(section.id);
+    if (!el) continue;
+    const accentKey = section.accent || section.id;
+    const hex = config.theme?.accents?.[accentKey];
+    if (hex) {
+      el.style.setProperty('--section-accent',  hex);
+      el.style.setProperty('--section-glow',    hexToRgba(hex, 0.15));
+      el.style.setProperty('--section-icon-bg', hexToRgba(hex, 0.12));
+    }
+  }
+
+  // Start reports polling now that the reports section exists
+  pollReports();
+  setInterval(pollReports, 30000);
+
+  if (sections.some(s => s.type === 'checklist')) {
+    pollChecklist();
+    setInterval(pollChecklist, 10000);
+  }
+  if (sections.some(s => s.type === 'announcements')) {
+    pollAnnouncements();
+    setInterval(pollAnnouncements, 15000);
+  }
+  if (sections.some(s => s.type === 'news')) {
+    pollNews();
+    setInterval(pollNews, 60000);
+  }
+  if (sections.some(s => s.type === 'music')) {
+    pollMusic();
+    setInterval(pollMusic, 300000);
+  }
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  tick();
+  setInterval(tick, 1000);
+  pollSessions();
+  setInterval(pollSessions, 5000);
+  loadConfig();
+});
+</script>
+</body>
+</html>

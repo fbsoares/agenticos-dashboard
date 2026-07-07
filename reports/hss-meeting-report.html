@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home Sweet Sushi — Reunião de Acompanhamento | 09 jun 2026</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --bg3: #334155;
+    --border: #475569;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --green: #22c55e;
+    --green-bg: #14532d;
+    --blue: #60a5fa;
+    --blue-bg: #1e3a5f;
+    --yellow: #fbbf24;
+    --yellow-bg: #451a03;
+    --red: #f87171;
+    --red-bg: #450a0a;
+    --purple: #a78bfa;
+    --purple-bg: #2e1065;
+    --gray: #94a3b8;
+    --gray-bg: #1e293b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; padding: 24px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .cards { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; min-width: 140px; }
+  .card .num { font-size: 28px; font-weight: 700; }
+  .card .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .card.green { border-color: var(--green); }
+  .card.green .num { color: var(--green); }
+  .card.blue { border-color: var(--blue); }
+  .card.blue .num { color: var(--blue); }
+  .card.yellow { border-color: var(--yellow); }
+  .card.yellow .num { color: var(--yellow); }
+  .card.red { border-color: var(--red); }
+  .card.red .num { color: var(--red); }
+
+  .ticket { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 18px; overflow: hidden; }
+  .ticket-header { display: flex; align-items: flex-start; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+  .ticket-header:hover { background: var(--bg3); }
+  .status-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; white-space: nowrap; }
+  .status-done { background: var(--green-bg); color: var(--green); }
+  .status-qa { background: var(--blue-bg); color: var(--blue); }
+  .status-client-pending { background: var(--yellow-bg); color: var(--yellow); }
+  .status-open { background: var(--gray-bg); color: var(--gray); border: 1px solid var(--border); }
+  .status-needs-action { background: var(--red-bg); color: var(--red); }
+  .ticket-title { font-size: 15px; font-weight: 600; flex: 1; }
+  .ticket-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+  .meta-chip { font-size: 11px; color: var(--muted); background: var(--bg3); padding: 2px 8px; border-radius: 4px; }
+  .meta-chip a { color: var(--blue); text-decoration: none; }
+  .meta-chip a:hover { text-decoration: underline; }
+  .ticket-body { padding: 16px 20px; }
+  .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-bottom: 6px; margin-top: 14px; }
+  .section-label:first-child { margin-top: 0; }
+  p { color: var(--text); margin-bottom: 4px; }
+  .next-steps { background: var(--bg); border: 1px solid var(--blue); border-radius: 6px; padding: 12px 14px; }
+  .next-steps ul { padding-left: 18px; }
+  .next-steps li { color: var(--blue); margin-bottom: 4px; font-size: 13px; }
+  .next-steps li span { color: var(--text); }
+  .tag-section { font-size: 13px; font-weight: 700; padding: 10px 16px; margin-bottom: 12px; border-radius: 6px; }
+  .tag-production { background: var(--green-bg); color: var(--green); }
+  .tag-qa { background: var(--blue-bg); color: var(--blue); }
+  .tag-waiting { background: var(--yellow-bg); color: var(--yellow); }
+  .tag-todo { background: var(--gray-bg); color: var(--gray); }
+
+  details > summary { list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+
+  .section-header { font-size: 16px; font-weight: 700; margin: 28px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .section-header .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot-green { background: var(--green); }
+  .dot-blue { background: var(--blue); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-gray { background: var(--gray); }
+
+  .chevron { font-size: 10px; margin-left: auto; color: var(--muted); transition: transform 0.2s; }
+  details[open] .chevron { transform: rotate(180deg); }
+
+  .warning-box { background: var(--yellow-bg); border: 1px solid var(--yellow); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; color: var(--yellow); }
+  .info-box { background: var(--blue-bg); border: 1px solid var(--blue); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; color: var(--blue); }
+  .success-box { background: var(--green-bg); border: 1px solid var(--green); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; color: var(--green); }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  .toggle-btn { position: fixed; top: 16px; right: 20px; background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; z-index: 999; }
+  body.light { --bg: #f8fafc; --bg2: #ffffff; --bg3: #f1f5f9; --border: #cbd5e1; --text: #1e293b; --muted: #64748b; }
+</style>
+</head>
+<body>
+<button class="toggle-btn" onclick="document.body.classList.toggle('light')">☀ Light</button>
+
+<h1>🍣 Home Sweet Sushi — Reunião de Acompanhamento</h1>
+<div class="subtitle">Sprint 06 | 1–15 jun 2026 &nbsp;·&nbsp; Gerado em: 09 jun 2026</div>
+
+<div class="cards">
+  <div class="card green"><div class="num">1</div><div class="label">Em produção</div></div>
+  <div class="card blue"><div class="num">2</div><div class="label">Em QA (para validar)</div></div>
+  <div class="card yellow"><div class="num">1</div><div class="label">Aguarda resposta cliente</div></div>
+  <div class="card"><div class="num">1</div><div class="label">Backlog / Open</div></div>
+</div>
+
+<!-- ============================
+     SECTION: PRODUÇÃO
+     ============================ -->
+<div class="section-header"><span class="dot dot-green"></span> Entregue em Produção</div>
+
+<details open class="ticket">
+  <summary class="ticket-header">
+    <div>
+      <div class="ticket-title">Integração Uber Eats — Coordenadas nos pedidos incompletos</div>
+      <div class="ticket-meta">
+        <span class="status-badge status-done">✓ Done</span>
+        <span class="meta-chip">SPOC26022026_01044</span>
+        <span class="meta-chip"><a href="https://zmt.atlassian.net/browse/GOAPI-3628" target="_blank">GOAPI-3628</a></span>
+        <span class="meta-chip">High</span>
+        <span class="meta-chip">Francisco Soares</span>
+        <span class="meta-chip">Produção: 12 mai 2026</span>
+      </div>
+    </div>
+    <span class="chevron">▼</span>
+  </summary>
+  <div class="ticket-body">
+    <div class="success-box">✅ Fix integrado em produção a 12 de maio de 2026.</div>
+    <div class="section-label">Problema</div>
+    <p>Pedidos Uber Eats com coordenadas incompletas. Endereços com número de porta e andar não eram transmitidos corretamente.</p>
+    <div class="section-label">O que foi feito</div>
+    <p>Três correções aplicadas pelo Francisco:</p>
+    <ul style="padding-left:18px; margin-top:6px; color: var(--muted);">
+      <li style="margin-bottom:4px"><span style="color:var(--text)">Número de porta estruturado com separador pipe (<code>|</code>) para mapeamento correto do andar via <code>BillingAddress::getDetails()</code></span></li>
+      <li style="margin-bottom:4px"><span style="color:var(--text)">Coordenadas validadas (<code>validated_geo</code>) usadas em todos os blocos de dispatch</span></li>
+      <li style="margin-bottom:4px"><span style="color:var(--text)">Padrão aplicado também ao UberDirect</span></li>
+    </ul>
+    <div class="section-label">Próximos passos</div>
+    <div class="next-steps">
+      <ul>
+        <li><span>Confirmar com cliente que os pedidos Uber Eats chegam corretamente desde meados de maio</span></li>
+        <li><span>Fechar SPOC se não houver mais ocorrências reportadas</span></li>
+      </ul>
+    </div>
+  </div>
+</details>
+
+<!-- ============================
+     SECTION: QA
+     ============================ -->
+<div class="section-header"><span class="dot dot-blue"></span> Em QA — Aguarda Validação do Cliente</div>
+
+<details open class="ticket">
+  <summary class="ticket-header">
+    <div>
+      <div class="ticket-title">Pedidos de encomendas — Modo Guest (checkout sem conta)</div>
+      <div class="ticket-meta">
+        <span class="status-badge status-qa">⏳ QA</span>
+        <span class="meta-chip">SPOC03022026_00899</span>
+        <span class="meta-chip"><a href="https://zmt.atlassian.net/browse/GOAPI-3642" target="_blank">GOAPI-3642</a></span>
+        <span class="meta-chip">High</span>
+        <span class="meta-chip">Clara Frazão</span>
+        <span class="meta-chip">Atualizado: 08 jun 2026</span>
+      </div>
+    </div>
+    <span class="chevron">▼</span>
+  </summary>
+  <div class="ticket-body">
+    <div class="info-box">🔵 Disponível para teste em staging: <strong>qly2.outdare.pt</strong></div>
+    <div class="section-label">Pedido</div>
+    <p>Possibilidade de realizar encomendas sem conta (modo guest) — fluxo de checkout sem login obrigatório.</p>
+    <div class="section-label">Estado atual</div>
+    <p>Feature desenvolvida e em QA. Última iteração após feedback do cliente: nome ficava duplicado se apelido não fosse preenchido — corrigido tornando nome + apelido obrigatórios.</p>
+    <p style="margin-top:6px; color:var(--muted)">Branch: <code>feature/GOAPI-3642/guestMode</code> · MR submetido · Clara como responsável</p>
+    <div class="section-label">SPOC Status</div>
+    <p style="color: var(--red)">⚠ SPOC marcado como <strong>Needs Support Action</strong> — verificar se há ação pendente da nossa parte antes da reunião.</p>
+    <div class="section-label">Próximos passos</div>
+    <div class="next-steps">
+      <ul>
+        <li><span>Pedir ao cliente que valide o fluxo guest em <strong>qly2.outdare.pt</strong></span></li>
+        <li><span>Confirmar se o SPOC "Needs Support Action" tem algo pendente ou pode ser removido</span></li>
+        <li><span>Após validação: merge para produção</span></li>
+      </ul>
+    </div>
+  </div>
+</details>
+
+<details open class="ticket">
+  <summary class="ticket-header">
+    <div>
+      <div class="ticket-title">Faturação no Checkout — Simplificação do pedido de fatura</div>
+      <div class="ticket-meta">
+        <span class="status-badge status-qa">⏳ QA</span>
+        <span class="meta-chip">SPOC20022026_01003</span>
+        <span class="meta-chip"><a href="https://zmt.atlassian.net/browse/GOAPI-3591" target="_blank">GOAPI-3591</a></span>
+        <span class="meta-chip">Medium</span>
+        <span class="meta-chip">Clara Frazão</span>
+        <span class="meta-chip">Atualizado: 03 jun 2026</span>
+      </div>
+    </div>
+    <span class="chevron">▼</span>
+  </summary>
+  <div class="ticket-body">
+    <div class="info-box">🔵 Disponível para teste em staging: <strong>qly2.outdare.pt</strong></div>
+    <div class="section-label">Pedido</div>
+    <p>Simplificação do fluxo de faturação no checkout: botão "Deseja fatura?" com apenas NIF + Nome (em vez do formulário completo atual).</p>
+    <div class="section-label">Estado atual</div>
+    <p>Implementação em QA. MR submetido. Staging atualizado. Clara identificou um ponto a ter em conta: o NIF de faturação estava a ser guardado ao nível do perfil em vez de por encomenda — corrigido para que cada encomenda tenha o seu próprio contexto de faturação.</p>
+    <div class="section-label">Próximos passos</div>
+    <div class="next-steps">
+      <ul>
+        <li><span>Pedir ao cliente que valide o fluxo de faturação em <strong>qly2.outdare.pt</strong></span></li>
+        <li><span>Confirmar se o NIF deve ser guardado por encomenda ou reutilizado do perfil (validar com cliente se pretendem pré-preenchimento)</span></li>
+        <li><span>Após validação: merge para produção</span></li>
+      </ul>
+    </div>
+  </div>
+</details>
+
+<!-- ============================
+     SECTION: CLIENT PENDING
+     ============================ -->
+<div class="section-header"><span class="dot dot-yellow"></span> Aguarda Resposta / Informação do Cliente</div>
+
+<details open class="ticket">
+  <summary class="ticket-header">
+    <div>
+      <div class="ticket-title">Bugs Checkout — Mensagem de erro e bloqueio com observações</div>
+      <div class="ticket-meta">
+        <span class="status-badge status-client-pending">⏸ CLIENT PENDING</span>
+        <span class="meta-chip">SPOC20022026_01001</span>
+        <span class="meta-chip"><a href="https://zmt.atlassian.net/browse/GOAPI-3592" target="_blank">GOAPI-3592</a></span>
+        <span class="meta-chip">Medium</span>
+        <span class="meta-chip">Ruben</span>
+        <span class="meta-chip">Atualizado: 01 jun 2026</span>
+      </div>
+    </div>
+    <span class="chevron">▼</span>
+  </summary>
+  <div class="ticket-body">
+    <div class="warning-box">⚠ JIRA em CLIENT PENDING — necessário esclarecer com cliente antes de prosseguir.</div>
+    <div class="section-label">Bugs reportados</div>
+    <ul style="padding-left:18px; margin-top:6px;">
+      <li style="margin-bottom:8px"><strong>Mensagem de erro genérica:</strong> <span style="color:var(--muted)">Quando faltam vários campos no checkout, aparece apenas "falta preencher método de entrega" — mensagem enganosa que não reflete o problema real.</span></li>
+      <li><strong>Bloqueio indevido com observações:</strong> <span style="color:var(--muted)">Se o utilizador preenche o campo de observações antes de completar os outros campos, fica bloqueado — não consegue finalizar a encomenda nem validar o promocode.</span></li>
+    </ul>
+    <div class="section-label">Situação</div>
+    <p>JIRA em CLIENT PENDING sem comentários — o ticket está a aguardar feedback ou confirmação do cliente para avançar.</p>
+    <div class="section-label">Próximos passos</div>
+    <div class="next-steps">
+      <ul>
+        <li><span>Clarificar com cliente: os bugs ainda se verificam? Qual o impacto atual?</span></li>
+        <li><span>Confirmar se o comportamento do campo de observações é prioridade neste sprint</span></li>
+        <li><span>Após confirmação: Ruben avança com implementação</span></li>
+      </ul>
+    </div>
+  </div>
+</details>
+
+<!-- ============================
+     SECTION: OPEN / BACKLOG
+     ============================ -->
+<div class="section-header"><span class="dot dot-gray"></span> Backlog — A Iniciar</div>
+
+<details open class="ticket">
+  <summary class="ticket-header">
+    <div>
+      <div class="ticket-title">Regra de oferta no checkout — Produto não visível no carrinho</div>
+      <div class="ticket-meta">
+        <span class="status-badge status-open">○ Open</span>
+        <span class="meta-chip">SPOC19022026_00984</span>
+        <span class="meta-chip"><a href="https://zmt.atlassian.net/browse/GOAPI-3605" target="_blank">GOAPI-3605</a></span>
+        <span class="meta-chip">Medium</span>
+        <span class="meta-chip">Francisco Soares</span>
+        <span class="meta-chip">Atualizado: 03 jun 2026</span>
+      </div>
+    </div>
+    <span class="chevron">▼</span>
+  </summary>
+  <div class="ticket-body">
+    <div class="section-label">Problema</div>
+    <p>Quando existe uma regra de oferta configurada, o produto da oferta não aparece no carrinho nem no checkout — apenas na grelha de produtos. O utilizador não sabe que vai ter uma oferta ou desiste da encomenda por não conseguir obtê-la.</p>
+    <div class="section-label">Situação</div>
+    <p>Ticket aberto e atribuído ao Francisco. Sem comentários ou progresso registado. Ainda não iniciado.</p>
+    <div class="section-label">Próximos passos</div>
+    <div class="next-steps">
+      <ul>
+        <li><span>Confirmar com cliente: qual o comportamento esperado? Produto deve aparecer automaticamente no carrinho, ou como linha informativa?</span></li>
+        <li><span>Francisco inicia análise e estimativa no sprint atual ou próximo sprint</span></li>
+      </ul>
+    </div>
+  </div>
+</details>
+
+<hr>
+
+<div style="color: var(--muted); font-size: 12px; margin-top: 12px;">
+  Gerado automaticamente a partir de dados JIRA + Airtable SPOC Hub 2.0 &nbsp;·&nbsp; Sprint 06 | 1–15 jun 2026
+</div>
+
+<script>
+  document.querySelectorAll('.ticket-header').forEach(h => {
+    h.addEventListener('click', () => {
+      const d = h.closest('details');
+      if (d) d.open = !d.open;
+    });
+  });
+</script>
+</body>
+</html>

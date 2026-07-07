@@ -1,0 +1,10 @@
+[Unit]
+Description=Dashboard HTTP server
+
+[Service]
+WorkingDirectory={{DASHBOARD_DIR}}
+ExecStart={{DASHBOARD_DIR}}/.venv/bin/python {{DASHBOARD_DIR}}/server.py
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

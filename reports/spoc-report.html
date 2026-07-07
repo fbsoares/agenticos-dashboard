@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOC Backlog Health Report</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --bg3: #334155;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: #475569;
+    --card-bg: #1e293b;
+    --table-stripe: #1a2744;
+    --amber-row: #3d2e00;
+    --done-row: #14291f;
+    --header-bg: #0f172a;
+    --shadow: rgba(0,0,0,0.5);
+  }
+  :root[data-theme="light"] {
+    --bg: #f1f5f9;
+    --bg2: #ffffff;
+    --bg3: #e2e8f0;
+    --text: #1e293b;
+    --text2: #64748b;
+    --border: #cbd5e1;
+    --card-bg: #ffffff;
+    --table-stripe: #f8fafc;
+    --amber-row: #fef3c7;
+    --done-row: #dcfce7;
+    --header-bg: #1e293b;
+    --shadow: rgba(0,0,0,0.1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    padding: 2rem;
+    border-bottom: 1px solid #1e40af;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  header h1 {
+    color: #e2e8f0;
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+
+  header .meta {
+    color: #94a3b8;
+    font-size: 0.85rem;
+  }
+
+  .theme-toggle {
+    background: #334155;
+    color: #e2e8f0;
+    border: 1px solid #475569;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+  }
+  .theme-toggle:hover { background: #475569; }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .metric-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 8px var(--shadow);
+    transition: transform 0.2s;
+  }
+  .metric-card:hover { transform: translateY(-2px); }
+
+  .metric-val {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: #60a5fa;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  .metric-val.done { color: #34d399; }
+  .metric-val.open { color: #f87171; }
+  .metric-val.nojira { color: #fbbf24; }
+
+  .metric-label {
+    color: var(--text2);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  details {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+
+  summary {
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1.05rem;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+  }
+  summary:hover { background: var(--bg3); }
+  summary::before { content: "▶"; font-size: 0.7rem; color: var(--text2); transition: transform 0.2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+
+  .section-content {
+    padding: 1.5rem;
+    overflow-x: auto;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .data-table th {
+    background: var(--bg3);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text2);
+    position: sticky;
+    top: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .data-table th:hover { background: var(--border); color: var(--text); }
+  .data-table th.sorted-asc::after { content: " ▲"; }
+  .data-table th.sorted-desc::after { content: " ▼"; }
+
+  .data-table td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .data-table tbody tr:nth-child(even) { background: var(--table-stripe); }
+  .data-table tbody tr:hover { background: var(--bg3); }
+  .data-table tbody tr.amber-row { background: var(--amber-row) !important; }
+  .data-table tbody tr.done-row { background: var(--done-row); opacity: 0.8; }
+
+  .badge {
+    display: inline-block;
+    padding: 0.2em 0.7em;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  .progress-bar {
+    background: var(--bg3);
+    border-radius: 9999px;
+    height: 20px;
+    position: relative;
+    min-width: 80px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    background: #3b82f6;
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.5s;
+  }
+  .progress-bar span {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .flag-item {
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    border-left: 4px solid;
+  }
+  .flag-critical { background: rgba(239,68,68,0.15); border-color: #ef4444; color: #fca5a5; }
+  .flag-warning { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #fde68a; }
+  .flag-info { background: rgba(52,211,153,0.12); border-color: #10b981; color: #6ee7b7; }
+
+  :root[data-theme="light"] .flag-critical { color: #991b1b; }
+  :root[data-theme="light"] .flag-warning { color: #78350f; }
+  :root[data-theme="light"] .flag-info { color: #065f46; }
+
+  a { color: #60a5fa; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+  @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+  .ttr-stats { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text2);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>📊 SPOC Backlog Health</h1>
+    <div class="meta">Generated: 2026-06-05 &nbsp;|&nbsp; Period: Last 7 Days &nbsp;|&nbsp; Total Records: 53</div>
+  </div>
+  <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
+</header>
+
+<div class="container">
+
+  <!-- Summary Cards -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-val">53</div>
+      <div class="metric-label">Total Tickets</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val done">24 <span style="font-size:1rem">(45%)</span></div>
+      <div class="metric-label">Done</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val open">29 <span style="font-size:1rem">(55%)</span></div>
+      <div class="metric-label">Open</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val nojira">4</div>
+      <div class="metric-label">No-JIRA (open)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:#a78bfa">1.2d</div>
+      <div class="metric-label">Avg Resolution</div>
+    </div>
+  </div>
+
+  <!-- Section 1: Overview -->
+  <details open>
+    <summary>1. Overview</summary>
+    <div class="section-content">
+      <div class="two-col">
+        <div>
+          <table class="data-table">
+            <thead><tr><th>Category</th><th>Count</th><th>%</th></tr></thead>
+            <tbody>
+              <tr><td><span class="badge" style="background:#10b981">Done</span></td><td>24</td><td>45.3%</td></tr>
+              <tr><td><span class="badge" style="background:#f87171">Open</span></td><td>29</td><td>54.7%</td></tr>
+              <tr style="font-weight:bold"><td>Total</td><td>53</td><td>100%</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <p style="color:var(--text2);font-size:0.9rem;margin-bottom:0.5rem">Done statuses: Closed, Canceled, Duplicated</p>
+          <div class="progress-bar" style="height:30px;margin-top:1rem">
+            <div class="progress-fill" style="background:#10b981;width:45%"></div>
+            <span style="left:8px;right:auto">Done 45%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Section 2: Status Distribution -->
+  <details open>
+    <summary>2. Status Distribution</summary>
+    <div class="section-content">
+      <table class="data-table" id="table-s2">
+        <thead><tr><th onclick="sortTable('table-s2',0)">Status</th><th onclick="sortTable('table-s2',1)">Count</th><th onclick="sortTable('table-s2',2)">Category</th></tr></thead>
+        <tbody><tr class=""><td><span class="badge" style="background:#f59e0b">Tech Pending</span></td><td>25</td><td>Open</td></tr>
+<tr class="done-row"><td><span class="badge" style="background:#9ca3af">Closed</span></td><td>21</td><td>✓ Done</td></tr>
+<tr class=""><td><span class="badge" style="background:#6b7280">On Hold</span></td><td>2</td><td>Open</td></tr>
+<tr class="done-row"><td><span class="badge" style="background:#9ca3af">Canceled</span></td><td>2</td><td>✓ Done</td></tr>
+<tr class=""><td><span class="badge" style="background:#3b82f6">Client Pending</span></td><td>1</td><td>Open</td></tr>
+<tr class=""><td><span class="badge" style="background:#10b981">Open</span></td><td>1</td><td>Open</td></tr>
+<tr class="done-row"><td><span class="badge" style="background:#9ca3af">Duplicated</span></td><td>1</td><td>✓ Done</td></tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- Section 3: By Requestor -->
+  <details open>
+    <summary>3. By Requestor</summary>
+    <div class="section-content">
+      <table class="data-table" id="table-s3">
+        <thead><tr><th onclick="sortTable('table-s3',0)">Requestor</th><th onclick="sortTable('table-s3',1)">Total</th><th onclick="sortTable('table-s3',2)">Done</th><th onclick="sortTable('table-s3',3)">Open</th><th>Done %</th></tr></thead>
+        <tbody><tr><td>Client</td><td>43</td><td>21</td><td>22</td><td><div class="progress-bar"><div class="progress-fill" style="width:49%"></div><span>49%</span></div></td></tr>
+<tr><td>Internal</td><td>9</td><td>2</td><td>7</td><td><div class="progress-bar"><div class="progress-fill" style="width:22%"></div><span>22%</span></div></td></tr>
+<tr><td>User</td><td>1</td><td>1</td><td>0</td><td><div class="progress-bar"><div class="progress-fill" style="width:100%"></div><span>100%</span></div></td></tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- Section 4: By Product -->
+  <details open>
+    <summary>4. By Product</summary>
+    <div class="section-content">
+      <table class="data-table" id="table-s4">
+        <thead><tr><th onclick="sortTable('table-s4',0)">Product</th><th onclick="sortTable('table-s4',1)">Count</th></tr></thead>
+        <tbody><tr><td>Ecommerce</td><td>37</td></tr>
+<tr><td>Book</td><td>9</td></tr>
+<tr><td>Internal Tools</td><td>5</td></tr>
+<tr><td>Communication</td><td>1</td></tr>
+<tr><td>PRO</td><td>1</td></tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- Section 5: Time to Resolution -->
+  <details open>
+    <summary>5. Time-to-Resolution (Done Tickets)</summary>
+    <div class="section-content">
+      
+    <div class="metrics-grid">
+      <div class="metric-card"><div class="metric-val">1.2d</div><div class="metric-label">Avg Resolution</div></div>
+      <div class="metric-card"><div class="metric-val">0.2d</div><div class="metric-label">Median</div></div>
+      <div class="metric-card"><div class="metric-val">0.0d</div><div class="metric-label">Min</div></div>
+      <div class="metric-card"><div class="metric-val">6.9d</div><div class="metric-label">Max</div></div>
+    </div>
+    <p style="opacity:0.7;font-size:0.85em">Based on 24 resolved tickets with valid timestamps</p>
+    
+    </div>
+  </details>
+
+  <!-- Section 6: Open Ticket List -->
+  <details open>
+    <summary>6. Open Ticket List (29 tickets) — ⚠️ = age &gt; 7 days</summary>
+    <div class="section-content">
+      <p style="color:var(--text2);font-size:0.85rem;margin-bottom:1rem">Sorted oldest first. Amber rows = age &gt; 7 days. Click column headers to sort.</p>
+      <div style="overflow-x:auto">
+      <table class="data-table" id="table-s6">
+        <thead>
+          <tr>
+            <th onclick="sortTable('table-s6',0)">SPOC ID</th>
+            <th onclick="sortTable('table-s6',1)">Client</th>
+            <th onclick="sortTable('table-s6',2)">Subject</th>
+            <th onclick="sortTable('table-s6',3)">SPOC Status</th>
+            <th onclick="sortTable('table-s6',4)">JIRA ID</th>
+            <th onclick="sortTable('table-s6',5)">JIRA Status</th>
+            <th onclick="sortTable('table-s6',6)">Priority</th>
+            <th onclick="sortTable('table-s6',7)">Sprint</th>
+            <th onclick="sortTable('table-s6',8)">POC</th>
+            <th onclick="sortTable('table-s6',9)">Age</th>
+          </tr>
+        </thead>
+        <tbody><tr class="">
+      <td style="white-space:nowrap">SPOC29052026_01609</td>
+      <td>Soltroia_Beach_Lounge</td>
+      <td title="Filtrar Por Ano Corrente a Pesquisa por Mesas - Soltroia">Filtrar Por Ano Corrente a Pesquisa por Mesas - So...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4013" target="_blank">SPOC29052026_01609</a></td>
+      <td><span class="badge" style="background:#ef4444">BIZ PENDING</span></td>
+      <td><span class="badge" style="background:#f97316">High</span></td>
+      <td style="font-size:0.8em;opacity:0.8">GOAPI-Sprint 06 | 1jun-15jun</td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">7d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC29052026_01610</td>
+      <td>Sushi_and_Poke</td>
+      <td title="Incidente com pedido 441">Incidente com pedido 441</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4018" target="_blank">SPOC29052026_01610</a></td>
+      <td><span class="badge" style="background:#ef4444">BIZ PENDING</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Luísa Castro</td>
+      <td style="font-weight:bold">7d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC29052026_01612</td>
+      <td>DIG-IN_Geral</td>
+      <td title="Adicionar logs de estado ao json das encomendas">Adicionar logs de estado ao json das encomendas</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4019" target="_blank">SPOC29052026_01612</a></td>
+      <td><span class="badge" style="background:#ef4444">BIZ PENDING</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Daniela Fernandes</td>
+      <td style="font-weight:bold">7d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC29052026_01617</td>
+      <td>Sushi_and_Poke</td>
+      <td title="Antecedência 20min para o ticket sair">Antecedência 20min para o ticket sair</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4022" target="_blank">SPOC29052026_01617</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">7d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC29052026_01619</td>
+      <td>Home_Sweet_Sushi</td>
+      <td title="Pedido ID 1342958 - entrou com antecedência 16min apesar de&quot;">Pedido ID 1342958 - entrou com antecedência 16min ...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4023" target="_blank">SPOC29052026_01619</a></td>
+      <td><span class="badge" style="background:#ef4444">BIZ PENDING</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">6d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC29052026_01620</td>
+      <td>Home_Sweet_Sushi</td>
+      <td title="Uber Direct - Pedidos manualmente ID 1342956 e ID 1342784">Uber Direct - Pedidos manualmente ID 1342956 e ID ...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4024" target="_blank">SPOC29052026_01620</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">6d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC01062026_01621</td>
+      <td>Fujitien</td>
+      <td title="Drop do sistema Ecommerce">Drop do sistema Ecommerce</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4035" target="_blank">SPOC01062026_01621</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8">GOAPI-Sprint 06 | 1jun-15jun</td>
+      <td>Daniela Fernandes</td>
+      <td style="font-weight:bold">4d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC01062026_01623</td>
+      <td>Spill_The_Greens</td>
+      <td title="Clientes não conseguem fazer encomendas no website">Clientes não conseguem fazer encomendas no website</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4026" target="_blank">SPOC01062026_01623</a></td>
+      <td><span class="badge" style="background:#f59e0b">TO DESCRIBE</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">4d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC01062026_01626</td>
+      <td>Sushi_In_the_House</td>
+      <td title="Código ALMOCO10 aceite ao jantar">Código ALMOCO10 aceite ao jantar</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4029" target="_blank">SPOC01062026_01626</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">4d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01629</td>
+      <td>Soltroia_Beach_Lounge</td>
+      <td title="Envio de Ficheiro com os pagamentos (quem já pagou ou não)">Envio de Ficheiro com os pagamentos (quem já pagou...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4051" target="_blank">SPOC02062026_01629</a></td>
+      <td><span class="badge" style="background:#8b5cf6">CODE REVIEW</span></td>
+      <td><span class="badge" style="background:#dc2626">Highest</span></td>
+      <td style="font-size:0.8em;opacity:0.8">GOAPI-Sprint 06 | 1jun-15jun</td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01634</td>
+      <td>Sushi_and_Poke</td>
+      <td title="configuração de horários, slots, impressão de pedidos">configuração de horários, slots, impressão de pedi...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4050" target="_blank">SPOC02062026_01634</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01635</td>
+      <td>DIG-IN_Geral</td>
+      <td title="Alteração na gestão de SPOCS | Biz x Tech x Suporte -- P1">Alteração na gestão de SPOCS | Biz x Tech x Suport...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/ZBUN-1745" target="_blank">SPOC02062026_01635</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Daniela Fernandes</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01636</td>
+      <td>DIG-IN_Geral</td>
+      <td title="Alteração na gestão de SPOCS | Biz x Tech x Suporte -- P2 ">Alteração na gestão de SPOCS | Biz x Tech x Suport...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/ZBUN-1744" target="_blank">SPOC02062026_01636</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Daniela Fernandes</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01637</td>
+      <td>DIG-IN_Geral</td>
+      <td title="Alteração na gestão de SPOCS | Biz x Tech x Suporte -- P3">Alteração na gestão de SPOCS | Biz x Tech x Suport...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/ZBUN-1743" target="_blank">SPOC02062026_01637</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Daniela Fernandes</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01638</td>
+      <td>Sushi_In_the_House</td>
+      <td title="Pedido ID 107760 Nº Encomenda 760 - Pedido Takeaway e saiu c">Pedido ID 107760 Nº Encomenda 760 - Pedido Takeawa...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4032" target="_blank">SPOC02062026_01638</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01640</td>
+      <td>Sushi_In_the_House</td>
+      <td title="Atualização dos termos e condições">Atualização dos termos e condições</td>
+      <td><span class="badge" style="background:#10b981">Open</span></td>
+      <td>SPOC02062026_01640</td>
+      <td><span class="badge" style="background:#dc2626">no JIRA</span></td>
+      <td></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01642</td>
+      <td>Home_Sweet_Sushi</td>
+      <td title="Alteração hora mudança de turno">Alteração hora mudança de turno</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4034" target="_blank">SPOC02062026_01642</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f97316">High</span></td>
+      <td style="font-size:0.8em;opacity:0.8">GOAPI-Sprint 06 | 1jun-15jun</td>
+      <td>Daniela Fernandes</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01643</td>
+      <td>Home_Sweet_Sushi</td>
+      <td title="Pin Uber Direct">Pin Uber Direct</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4048" target="_blank">SPOC02062026_01643</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01644</td>
+      <td>Home_Sweet_Sushi</td>
+      <td title="Sistema de Rewards por pontos">Sistema de Rewards por pontos</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4046" target="_blank">SPOC02062026_01644</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">3d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC02062026_01645</td>
+      <td>Sushi_In_the_House</td>
+      <td title="Pedido 107764 foi impresso com produto no campo das observaç">Pedido 107764 foi impresso com produto no campo da...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4036" target="_blank">SPOC02062026_01645</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Daniela Fernandes</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC03062026_01650</td>
+      <td>Vizinhos_do_Rei</td>
+      <td title="Ativação Book Pro | Restaurante Vizinhos do Rei">Ativação Book Pro | Restaurante Vizinhos do Rei</td>
+      <td><span class="badge" style="background:#3b82f6">Client Pending</span></td>
+      <td>SPOC03062026_01650</td>
+      <td><span class="badge" style="background:#dc2626">no JIRA</span></td>
+      <td></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC03062026_01651</td>
+      <td>Soltroia_Beach_Lounge</td>
+      <td title="Obrigatoriedade no número de telemovel em reservas diárias">Obrigatoriedade no número de telemovel em reservas...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4039" target="_blank">SPOC03062026_01651</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC03062026_01652</td>
+      <td>Soltroia_Beach_Lounge</td>
+      <td title="Cores de status nas reservas">Cores de status nas reservas</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4040" target="_blank">SPOC03062026_01652</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC03062026_01653</td>
+      <td>Soltroia_Beach_Lounge</td>
+      <td title="Acesso autónomo a determinas configurações">Acesso autónomo a determinas configurações</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4041" target="_blank">SPOC03062026_01653</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC03062026_01655</td>
+      <td>DIG-IN_Geral</td>
+      <td title="SPOC 2.0 - Description &amp; Attachments visíveis para Tech">SPOC 2.0 - Description &amp; Attachments visíveis para...</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/ZBUN-1747" target="_blank">SPOC03062026_01655</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC03062026_01657</td>
+      <td>DIG-IN_Geral</td>
+      <td title="Filtrar por loja em &quot;Encomendas&quot;">Filtrar por loja em &quot;Encomendas&quot;</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4043" target="_blank">SPOC03062026_01657</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC03062026_01658</td>
+      <td>DIG-IN_Geral</td>
+      <td title="Lista de Clientes e sua Integrações">Lista de Clientes e sua Integrações</td>
+      <td><span class="badge" style="background:#f59e0b">Tech Pending</span></td>
+      <td><a href="https://zmt.atlassian.net/browse/GOAPI-4044" target="_blank">SPOC03062026_01658</a></td>
+      <td><span class="badge" style="background:#6b7280">Open</span></td>
+      <td><span class="badge" style="background:#f59e0b">Medium</span></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Pedro Silva</td>
+      <td style="font-weight:bold">2d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC05062026_01660</td>
+      <td>18269084</td>
+      <td title="Erro no Envio de Mensagens Book PRO -  Casa da Guripa">Erro no Envio de Mensagens Book PRO -  Casa da Gur...</td>
+      <td><span class="badge" style="background:#6b7280">On Hold</span></td>
+      <td>SPOC05062026_01660</td>
+      <td><span class="badge" style="background:#dc2626">no JIRA</span></td>
+      <td></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">0d</td>
+    </tr>
+<tr class="">
+      <td style="white-space:nowrap">SPOC05062026_01661</td>
+      <td>Home_Sweet_Sushi</td>
+      <td title="Antecedência de Pedido Incorreta - HSS">Antecedência de Pedido Incorreta - HSS</td>
+      <td><span class="badge" style="background:#6b7280">On Hold</span></td>
+      <td>SPOC05062026_01661</td>
+      <td><span class="badge" style="background:#dc2626">no JIRA</span></td>
+      <td></td>
+      <td style="font-size:0.8em;opacity:0.8"></td>
+      <td>Inês Santos</td>
+      <td style="font-weight:bold">0d</td>
+    </tr>
+</tbody>
+      </table>
+      </div>
+    </div>
+  </details>
+
+  <!-- Section 7: JIRA Layer -->
+  <details open>
+    <summary>7. JIRA Layer Breakdown (Open Tickets)</summary>
+    <div class="section-content">
+      <div class="two-col">
+        <div>
+          <h4 style="margin-bottom:1rem;color:var(--text2)">By JIRA Status</h4>
+          <table class="data-table" id="table-s7">
+            <thead><tr><th onclick="sortTable('table-s7',0)">JIRA Status</th><th onclick="sortTable('table-s7',1)">Count</th></tr></thead>
+            <tbody><tr><td><span class="badge" style="background:#6b7280">Open</span></td><td>19</td></tr>
+<tr><td><span class="badge" style="background:#dc2626">no JIRA</span></td><td>4</td></tr>
+<tr><td><span class="badge" style="background:#ef4444">BIZ PENDING</span></td><td>4</td></tr>
+<tr><td><span class="badge" style="background:#8b5cf6">CODE REVIEW</span></td><td>1</td></tr>
+<tr><td><span class="badge" style="background:#f59e0b">TO DESCRIBE</span></td><td>1</td></tr>
+</tbody>
+          </table>
+        </div>
+        <div>
+          <h4 style="margin-bottom:1rem;color:var(--text2)">JIRA Coverage</h4>
+          <div class="metric-card" style="text-align:left">
+            <div style="margin-bottom:0.5rem"><strong>With JIRA:</strong> 25 / 29</div>
+            <div class="progress-bar" style="height:24px;margin:0.5rem 0">
+              <div class="progress-fill" style="background:#10b981;width:86%"></div>
+              <span>86%</span>
+            </div>
+            <div style="margin-top:1rem;color:#f87171"><strong>No JIRA:</strong> 4 (13.8%)</div>
+          </div>
+        </div>
+      </div>
+      <p style="color:#34d399">No stale SPOCs detected — all open SPOCs with JIRA have active JIRA tickets.</p>
+    </div>
+  </details>
+
+  <!-- Section 8: No-JIRA Tickets -->
+  <details open>
+    <summary>8. No-JIRA Open Tickets (4 tickets)</summary>
+    <div class="section-content">
+      <table class="data-table" id="table-s8">
+        <thead><tr>
+          <th onclick="sortTable('table-s8',0)">SPOC ID</th>
+          <th onclick="sortTable('table-s8',1)">Client</th>
+          <th onclick="sortTable('table-s8',2)">Subject</th>
+          <th onclick="sortTable('table-s8',3)">SPOC Status</th>
+          <th onclick="sortTable('table-s8',4)">POC</th>
+          <th onclick="sortTable('table-s8',5)">Age</th>
+        </tr></thead>
+        <tbody><tr><td>SPOC05062026_01661</td><td>Home_Sweet_Sushi</td><td>Antecedência de Pedido Incorreta - HSS</td><td><span class="badge" style="background:#6b7280">On Hold</span></td><td>Inês Santos</td><td>0d</td></tr>
+<tr><td>SPOC05062026_01660</td><td>18269084</td><td>Erro no Envio de Mensagens Book PRO -  Casa da Guripa</td><td><span class="badge" style="background:#6b7280">On Hold</span></td><td>Inês Santos</td><td>0d</td></tr>
+<tr><td>SPOC03062026_01650</td><td>Vizinhos_do_Rei</td><td>Ativação Book Pro | Restaurante Vizinhos do Rei</td><td><span class="badge" style="background:#3b82f6">Client Pending</span></td><td>Inês Santos</td><td>2d</td></tr>
+<tr><td>SPOC02062026_01640</td><td>Sushi_In_the_House</td><td>Atualização dos termos e condições</td><td><span class="badge" style="background:#10b981">Open</span></td><td>Pedro Silva</td><td>3d</td></tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- Section 9: POC Workload -->
+  <details open>
+    <summary>9. Support POC Workload (Open Tickets)</summary>
+    <div class="section-content">
+      <table class="data-table" id="table-s9">
+        <thead><tr>
+          <th onclick="sortTable('table-s9',0)">POC</th>
+          <th onclick="sortTable('table-s9',1)">Open</th>
+          <th onclick="sortTable('table-s9',2)">With JIRA</th>
+          <th onclick="sortTable('table-s9',3)">No JIRA</th>
+          <th>JIRA Coverage</th>
+        </tr></thead>
+        <tbody><tr><td>Pedro Silva</td><td>13</td><td>12</td><td>1</td><td><div class="progress-bar"><div class="progress-fill" style="width:92%;background:#10b981"></div><span>92%</span></div></td></tr>
+<tr><td>Inês Santos</td><td>8</td><td>5</td><td>3</td><td><div class="progress-bar"><div class="progress-fill" style="width:62%;background:#10b981"></div><span>62%</span></div></td></tr>
+<tr><td>Daniela Fernandes</td><td>7</td><td>7</td><td>0</td><td><div class="progress-bar"><div class="progress-fill" style="width:100%;background:#10b981"></div><span>100%</span></div></td></tr>
+<tr><td>Luísa Castro</td><td>1</td><td>1</td><td>0</td><td><div class="progress-bar"><div class="progress-fill" style="width:100%;background:#10b981"></div><span>100%</span></div></td></tr>
+</tbody>
+      </table>
+    </div>
+  </details>
+
+  <!-- Section 10: Key Flags -->
+  <details open>
+    <summary>10. Key Flags &amp; Action Items</summary>
+    <div class="section-content">
+      <div class="flag-item flag-warning"><strong>⚠️ Oldest Open Ticket:</strong> SPOC29052026_01617 (Sushi_and_Poke) — 7 days open</div>
+<div class="flag-item flag-warning"><strong>⚠️ Highest POC Load:</strong> Pedro Silva with 13 open tickets</div>
+<div class="flag-item flag-warning"><strong>⚠️ Dominant Blocking JIRA Status:</strong> Open (19 tickets)</div>
+<div class="flag-item flag-info"><strong>ℹ️ No-JIRA Exposure:</strong> 4/29 open tickets (13.8%) — low risk</div>
+<div class="flag-item flag-critical"><strong>🚨 Client Overload:</strong> DIG-IN_Geral — 7 open tickets, oldest: 7d, avg: 3.1d</div>
+<div class="flag-item flag-warning"><strong>⚠️ Client Overload:</strong> Home_Sweet_Sushi — 6 open tickets, oldest: 6d, avg: 3.5d</div>
+<div class="flag-item flag-critical"><strong>🚨 Client Overload:</strong> Soltroia_Beach_Lounge — 5 open tickets, oldest: 7d, avg: 3.2d</div>
+<div class="flag-item flag-warning"><strong>⚠️ Client Overload:</strong> Sushi_In_the_House — 4 open tickets, oldest: 4d, avg: 3.0d</div>
+<div class="flag-item flag-critical"><strong>🚨 Client Overload:</strong> Sushi_and_Poke — 3 open tickets, oldest: 7d, avg: 5.7d</div>
+<div class="flag-item flag-info"><strong>✅ No Stale SPOCs:</strong> All open SPOCs align with active JIRA tickets</div>
+<div class="flag-item flag-warning"><strong>⚠️ CODE REVIEW Tickets:</strong> 1 ticket(s) in CODE REVIEW — may be ready to close soon</div>
+
+    </div>
+  </details>
+
+</div>
+
+<footer>
+  SPOC Backlog Health Report &nbsp;|&nbsp; Generated: 2026-06-05 &nbsp;|&nbsp; Data source: Airtable
+</footer>
+
+<script>
+  function toggleTheme() {
+    const html = document.documentElement;
+    const btn = document.getElementById('themeBtn');
+    if (html.getAttribute('data-theme') === 'dark') {
+      html.setAttribute('data-theme', 'light');
+      btn.textContent = '🌙 Dark Mode';
+    } else {
+      html.setAttribute('data-theme', 'dark');
+      btn.textContent = '☀️ Light Mode';
+    }
+  }
+
+  const sortState = {};
+
+  function sortTable(tableId, colIndex) {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    const headers = table.querySelectorAll('th');
+    
+    const key = tableId + '_' + colIndex;
+    const asc = !sortState[key];
+    sortState[key] = asc;
+
+    headers.forEach((h, i) => {
+      h.classList.remove('sorted-asc', 'sorted-desc');
+      if (i === colIndex) h.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+    });
+
+    rows.sort((a, b) => {
+      const aText = (a.cells[colIndex]?.textContent || '').trim();
+      const bText = (b.cells[colIndex]?.textContent || '').trim();
+      const aNum = parseFloat(aText.replace(/[^\d.-]/g,''));
+      const bNum = parseFloat(bText.replace(/[^\d.-]/g,''));
+      if (!isNaN(aNum) && !isNaN(bNum)) {
+        return asc ? aNum - bNum : bNum - aNum;
+      }
+      return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+    });
+
+    rows.forEach(r => tbody.appendChild(r));
+  }
+</script>
+</body>
+</html>

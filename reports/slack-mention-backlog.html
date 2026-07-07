@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Slack Mention Backlog</title>
+<style>
+  :root[data-theme="dark"] {
+    --bg: #0f172a;
+    --bg2: #1e293b;
+    --bg3: #334155;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --border: #475569;
+    --card-bg: #1e293b;
+    --table-stripe: #1a2744;
+    --header-bg: #0f172a;
+    --shadow: rgba(0,0,0,0.5);
+    --done-bg: #0f2e1f;
+    --done-text: #34d399;
+    --pending-bg: #1e293b;
+    --tag-support: #1e3a5f;
+    --tag-dm: #2d1b4e;
+    --slack-purple: #4a154b;
+    --answer-bg: #1a1040;
+    --answer-text: #c4b5fd;
+  }
+  :root[data-theme="light"] {
+    --bg: #f1f5f9;
+    --bg2: #ffffff;
+    --bg3: #e2e8f0;
+    --text: #1e293b;
+    --text2: #64748b;
+    --border: #cbd5e1;
+    --card-bg: #ffffff;
+    --table-stripe: #f8fafc;
+    --header-bg: #1e293b;
+    --shadow: rgba(0,0,0,0.1);
+    --done-bg: #dcfce7;
+    --done-text: #16a34a;
+    --pending-bg: #ffffff;
+    --tag-support: #dbeafe;
+    --tag-dm: #ede9fe;
+    --slack-purple: #4a154b;
+    --answer-bg: #f5f3ff;
+    --answer-text: #4c1d95;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  header {
+    background: linear-gradient(135deg, #1a0033 0%, #4a154b 100%);
+    padding: 2rem;
+    border-bottom: 1px solid #7c3aed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  header h1 { color: #e2e8f0; font-size: 1.6rem; font-weight: 700; }
+  header h1 span { opacity: 0.7; font-size: 1.2rem; }
+  header .meta { color: #c4b5fd; font-size: 0.85rem; }
+
+  .header-controls { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+
+  .theme-toggle, .filter-btn {
+    background: rgba(255,255,255,0.1);
+    color: #e2e8f0;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    transition: background 0.2s;
+  }
+  .theme-toggle:hover, .filter-btn:hover { background: rgba(255,255,255,0.2); }
+  .filter-btn.active { background: #7c3aed; border-color: #7c3aed; }
+
+  .export-evals-btn {
+    font-size: 0.78rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: #e2e8f0;
+    cursor: pointer;
+  }
+  .export-evals-btn:hover { background: rgba(255,255,255,0.18); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .metric-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+
+  .metric-val {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.4rem;
+  }
+  .metric-val.total { color: #60a5fa; }
+  .metric-val.done { color: #34d399; }
+  .metric-val.pending { color: #f87171; }
+  .metric-val.pct { color: #fbbf24; }
+
+  .metric-label {
+    color: var(--text2);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .progress-bar {
+    background: var(--bg3);
+    border-radius: 9999px;
+    height: 6px;
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+  .progress-fill {
+    background: linear-gradient(90deg, #7c3aed, #34d399);
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.4s ease;
+  }
+
+  .task-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .task-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    box-shadow: 0 1px 4px var(--shadow);
+    transition: opacity 0.3s, background 0.3s;
+    cursor: pointer;
+  }
+  .task-item:hover { background: var(--bg3); }
+  .task-item.done { background: var(--done-bg); opacity: 0.65; }
+  .task-item.hidden { display: none; }
+
+  .task-checkbox {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .task-item.done .task-checkbox {
+    background: #34d399;
+    border-color: #34d399;
+    color: #0f2e1f;
+  }
+  .task-checkbox::after { content: ''; }
+  .task-item.done .task-checkbox::after { content: '✓'; font-size: 0.8rem; font-weight: 700; }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    align-items: center;
+  }
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15em 0.6em;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tag.channel { background: var(--tag-support); color: #93c5fd; }
+  .tag.dm { background: var(--tag-dm); color: #c4b5fd; }
+  .tag.sender { background: var(--bg3); color: var(--text2); }
+  .tag.priority-high { background: #450a0a; color: #fca5a5; }
+  .tag.escalate { background: #7f1d1d; color: #fca5a5; }
+
+  .task-text {
+    font-size: 0.92rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .task-item.done .task-text { text-decoration: line-through; color: var(--text2); }
+
+  .task-action {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    align-items: center;
+  }
+
+  .slack-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    color: #a78bfa;
+    text-decoration: none;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3);
+    transition: background 0.2s;
+  }
+  .slack-link:hover { background: rgba(124,58,237,0.3); }
+
+  .section-header {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    margin: 1.5rem 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .section-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Proposed answer */
+  .proposed-answer {
+    margin-top: 10px;
+    border-left: 3px solid #7c3aed;
+    padding: 8px 12px;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.88em;
+    background: var(--answer-bg);
+    color: var(--answer-text);
+    white-space: pre-wrap;
+  }
+  .proposed-answer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .answer-actions { display: flex; gap: 6px; align-items: center; }
+  .ai-badge { font-size: 0.72em; opacity: 0.75; }
+  .copy-btn {
+    font-size: 0.72em;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #7c3aed;
+    color: #fff;
+    border: none;
+  }
+  .eval-btn {
+    font-size: 0.85em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid var(--border);
+    opacity: 0.5;
+    transition: all 0.15s;
+  }
+  .eval-btn.active-up   { opacity: 1; background: #14532d; border-color: #22c55e; }
+  .eval-btn.active-down { opacity: 1; background: #7f1d1d; border-color: #ef4444; }
+  .actual-answer-panel { margin-top: 8px; display: none; flex-direction: column; gap: 6px; }
+  .actual-answer-panel.visible { display: flex; }
+  .actual-answer-panel label { font-size: 0.72em; opacity: 0.75; }
+  .actual-answer-panel textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 0.82em;
+    resize: vertical;
+  }
+  .actual-answer-panel button {
+    align-self: flex-end;
+    font-size: 0.72em;
+    padding: 2px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #334155;
+    color: #e2e8f0;
+    border: none;
+  }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text2);
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>💬 My Mentions (@Francisco)</h1>
+    <div class="meta" id="header-meta">Loaded from search on 2026-06-23 · 21 tasks · Fetched up to 2026-06-23 12:12 BST</div>
+  </div>
+  <div class="header-controls">
+    <button class="filter-btn active" id="btn-all" onclick="setFilter('all')">All</button>
+    <button class="filter-btn" id="btn-pending" onclick="setFilter('pending')">Pending</button>
+    <button class="filter-btn" id="btn-done" onclick="setFilter('done')">Done</button>
+    <button class="export-evals-btn" onclick="exportEvals()">📤 Exportar Feedback</button>
+    <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="metrics-grid" id="metrics">
+    <div class="metric-card">
+      <div class="metric-val total" id="m-total">21</div>
+      <div class="metric-label">Total</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val pending" id="m-pending">21</div>
+      <div class="metric-label">Pending</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val done" id="m-done">0</div>
+      <div class="metric-label">Done</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val pct" id="m-pct">0%</div>
+      <div class="metric-label">Progress</div>
+    </div>
+  </div>
+
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+
+  <div class="task-list" id="task-list"></div>
+
+</div>
+
+<footer id="footer-meta">
+  My Mentions (@Francisco) · my-mentions · Generated 2026-06-23 · Fetched up to 2026-06-23 12:12 BST · State persisted in localStorage
+</footer>
+
+<script>
+const META = {
+  searchId: 'my-mentions',
+  label: 'My Mentions (@Francisco)',
+  lastTs: '1782213171.991239',
+  fetchedUpTo: '2026-06-23 12:12 BST',
+  generatedAt: '2026-06-23',
+  stateFile: 'data/slack-mentions-my-mentions-state.json',
+};
+
+const STORAGE_KEY = `slack-mention-backlog-${META.searchId}-v1`;
+const EVAL_KEY = 'slack-mention-evals-' + META.searchId + '-v1';
+
+const TASKS = [
+  {
+    id: 'slack-mention-my-mentions-1782208941111649',
+    sender: 'Pedro Silva',
+    channel: 'DM com Pedro Silva',
+    channelType: 'dm',
+    priority: 'normal',
+    date: '2026-06-23 11:02',
+    text: 'Pedro Silva (DM) pergunta se vais estar presente na próxima edição do SEU esta quinta. Confirmar presença.',
+    permalink: 'https://dig-inpt.slack.com/archives/D069E51VC80/p1782208941111649',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782203636819209',
+    sender: 'Nuno Fernandes',
+    channel: '#agentic-led-nights',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-23 09:33',
+    text: 'Decisão: Nuno Fernandes (#agentic-led-nights) pergunta a Francisco e Steven se querem submeter candidatura a algo. Abrir thread para ver o que é e responder.',
+    permalink: 'https://dig-inpt.slack.com/archives/C0AMW2D3FPX/p1782203636819209',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782144581623139',
+    sender: 'Ruben',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-22 17:09',
+    text: 'Ruben (#support-tech-biz) analisou root cause do bug de pedidos com slot no passado (GOAPI-4071) — causa: allSchedules não filtra por hora atual. Rever análise e confirmar abordagem de fix.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782144581623139?thread_ts=1782063548.682239&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782139986484089',
+    sender: 'Adriana Fragoso',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-22 15:53',
+    text: "Adriana Fragoso (#support-tech-biz) confirma que opção 'continuar como convidado' ainda não aparece no site. Confirmar se ainda está em processo ou quando estará visível.",
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782139986484089?thread_ts=1771610688.723279&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782139717427099',
+    sender: 'Luisa Castro',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-22 15:48',
+    text: "Luísa Castro (#support-tech-biz) reporta divergência de morada: tab encomendas mostra 'Rua Orfeão do Porto', callcenter mostra outra morada para o mesmo user. Indicar como corrigir.",
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782139717427099?thread_ts=1773166581.535219&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782137682130159',
+    sender: 'Luisa Castro',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-22 15:14',
+    text: 'Luísa Castro (#support-tech-biz) pergunta se há mais alguma coisa a verificar neste SPOC ou se pode fechar. Abrir thread para perceber contexto e responder.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782137682130159?thread_ts=1779890922.962979&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782137339516019',
+    sender: 'Pedro Silva',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-22 15:08',
+    text: 'Pedro Silva (#support-tech-biz) verificou e não conseguiu replicar o problema de MBWAY. Confirmar se deve aguardar FUP com o POC para ver se voltou a acontecer.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782137339516019?thread_ts=1781807994.827149&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782124531044919',
+    sender: 'Luisa Castro',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-22 11:35',
+    text: 'Confirmar steps de teste: callcenter staging → inserir encomenda → grid alterar estado para "entregue" → verificar tab encomendas. Responder se está correcto.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782124531044919?thread_ts=1779698842.290849&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782117876892249',
+    sender: 'Adriana Fragoso',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-22 09:44',
+    text: 'Explicar a Ed o motivo da quebra de sistema no fim de semana + contexto de manutenção de máquina. Adriana precisa de resposta para tranquilizar o Ed.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1782117876892249?thread_ts=1782064014.706919&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1782068184438859',
+    sender: 'Paulo Lima',
+    channel: 'Group DM: Ruben / Francisco / Clara / Paulo',
+    channelType: 'dm',
+    priority: 'normal',
+    date: '2026-06-21 19:56',
+    text: 'Escrever resumo rápido do problema HSS + como foi resolvido para inserir nas cábulas da equipa.',
+    permalink: 'https://dig-inpt.slack.com/archives/C0AB9FTJ8V6/p1782068184438859?thread_ts=1782068184.438859&cid=C0AB9FTJ8V6',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781885638150009',
+    sender: 'Luisa Castro',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-19 17:13',
+    text: 'Avaliar se print/screenshot chega para enviar ao POC — Luísa quer saber se o POC consegue perceber a ótica do user. Responder.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781885638150009?thread_ts=1773418289.838699&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781884973254999',
+    sender: 'Adriana Fragoso',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-19 17:02',
+    text: 'Confirmar se Luísa consegue testar pagamentos digitais/offline usando site de outro cliente que também tenha esses pagamentos. Responder a Adriana.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781884973254999?thread_ts=1773418289.838699&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781883720437539',
+    sender: 'Luisa Castro',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-19 16:42',
+    text: 'Decisão: condição criada do lado de support — está tudo concluído? Luísa aguarda confirmação para informar a Bruna.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781883720437539?thread_ts=1779915083.912779&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781868016902839',
+    sender: 'Adriana Fragoso',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'high',
+    date: '2026-06-19 12:20',
+    text: 'Confirmar se SDR entrou para produção — cliente foi informado que podia testar na segunda dia 22. Mónica está de férias. cc @bizteam.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781868016902839?thread_ts=1778063807.806619&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781865639542949',
+    sender: 'Luisa Castro',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-19 11:40',
+    text: 'Decisão: fechar SPOC ou enviar para tech? Luísa pergunta se há necessidade de escalar.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781865639542949?thread_ts=1781864173.632829&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781864487340389',
+    sender: 'Ruben',
+    channel: 'Group DM: Ruben / Francisco / Clara / Paulo',
+    channelType: 'dm',
+    priority: 'normal',
+    date: '2026-06-19 11:21',
+    text: 'Aprovar ou recusar: Ruben pede para dar closure nos sprints actuais e dar start nos novos.',
+    permalink: 'https://dig-inpt.slack.com/archives/C0AB9FTJ8V6/p1781864487340389?thread_ts=1781864487.340389&cid=C0AB9FTJ8V6',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781859601200689',
+    sender: 'Pedro Silva',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-19 10:00',
+    text: 'Decisão: manter este SPOC aberto? Responder a Pedro.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781859601200689?thread_ts=1777292033.255019&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781856009427059',
+    sender: 'Pedro Silva',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-19 09:00',
+    text: 'Decisão: neste SPOC fazer "return to tech team"? Responder a Pedro.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781856009427059?thread_ts=1772545855.075679&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781809828317829',
+    sender: 'Pedro Silva',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-18 20:10',
+    text: 'Verificar item pedido ("conseguem verificar pfv?"). Abrir thread, perceber contexto, responder.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781809828317829?thread_ts=1781809796.706099&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781800033708719',
+    sender: 'Rita Ferreira',
+    channel: 'Group DM: Rita / Nuno / Francisco',
+    channelType: 'dm',
+    priority: 'normal',
+    date: '2026-06-18 17:27',
+    text: 'Responder se avançaste com algo mais neste tópico. Rita perguntou "chegaste a fazer algo mais aqui?".',
+    permalink: 'https://dig-inpt.slack.com/archives/C03UXFFQ9J7/p1781800033708719?thread_ts=1781512564.141249&cid=C03UXFFQ9J7',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+  {
+    id: 'slack-mention-my-mentions-1781791820253179',
+    sender: 'Luisa Castro',
+    channel: '#support-tech-biz',
+    channelType: 'channel',
+    priority: 'normal',
+    date: '2026-06-18 15:10',
+    text: 'Paulo (cliente) está a perguntar de novo. Abrir thread, perceber contexto acumulado, ajudar Luísa a responder.',
+    permalink: 'https://dig-inpt.slack.com/archives/C01HKHEK45Q/p1781791820253179?thread_ts=1781785558.251099&cid=C01HKHEK45Q',
+    proposed_answer: null,
+    escalate_to_tech: false,
+  },
+];
+
+let currentFilter = 'all';
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveState(state) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function toggleTask(id) {
+  const state = loadState();
+  state[id] = !state[id];
+  saveState(state);
+  renderAll();
+}
+
+function getEvals() {
+  try { return JSON.parse(localStorage.getItem(EVAL_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveEvals(e) { localStorage.setItem(EVAL_KEY, JSON.stringify(e)); }
+
+function evalAnswer(id, rating) {
+  const task = TASKS.find(t => t.id === id);
+  if (!task) return;
+  let evals = getEvals();
+  const existing = evals.find(e => e.taskId === id);
+  const entry = {
+    taskId: id,
+    rating,
+    proposed_answer: task.proposed_answer,
+    actual_answer: existing ? existing.actual_answer : null,
+    rated_at: new Date().toISOString()
+  };
+  evals = evals.filter(e => e.taskId !== id);
+  evals.push(entry);
+  saveEvals(evals);
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.classList.toggle('visible', rating === 'down');
+  renderAll();
+}
+
+function saveActual(id) {
+  const ta = document.getElementById('actual-' + id);
+  if (!ta) return;
+  let evals = getEvals();
+  const entry = evals.find(e => e.taskId === id);
+  if (entry) { entry.actual_answer = ta.value; saveEvals(evals); }
+  const panel = document.getElementById('panel-' + id);
+  if (panel) panel.classList.remove('visible');
+}
+
+function copyAnswer(id) {
+  const el = document.getElementById('answer-' + id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const btn = document.querySelector('[data-copy="' + id + '"]');
+    if (btn) { btn.textContent = 'Copiado!'; setTimeout(() => btn.textContent = 'Copiar', 1500); }
+  });
+}
+
+function exportEvals() {
+  const evals = getEvals().filter(e => e.rating === 'down');
+  if (!evals.length) { alert('Sem thumbs-down para exportar.'); return; }
+  const blob = new Blob([JSON.stringify(evals, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'slack-evals-' + META.searchId + '.json';
+  a.click();
+}
+
+function renderTask(task, isDone, taskEval) {
+  const isHidden = (currentFilter === 'pending' && isDone) || (currentFilter === 'done' && !isDone);
+  const channelClass = task.channelType === 'dm' ? 'dm' : 'channel';
+  const channelIcon = task.channelType === 'dm' ? '💬' : '#';
+
+  const upClass = taskEval && taskEval.rating === 'up' ? ' active-up' : '';
+  const downClass = taskEval && taskEval.rating === 'down' ? ' active-down' : '';
+  const panelVisible = taskEval && taskEval.rating === 'down' ? ' visible' : '';
+  const savedActual = (taskEval && taskEval.actual_answer) ? taskEval.actual_answer.replace(/"/g, '&quot;') : '';
+
+  const answerBlock = task.proposed_answer ? `
+    <div class="proposed-answer" onclick="event.stopPropagation()">
+      <div class="proposed-answer-header">
+        <span class="ai-badge">🤖 AI assisted</span>
+        <div class="answer-actions">
+          <button class="copy-btn" data-copy="${task.id}" onclick="copyAnswer('${task.id}')">Copiar</button>
+          <button class="eval-btn thumb-up${upClass}" onclick="evalAnswer('${task.id}','up')">👍</button>
+          <button class="eval-btn thumb-down${downClass}" onclick="evalAnswer('${task.id}','down')">👎</button>
+        </div>
+      </div>
+      <div class="proposed-answer-text" id="answer-${task.id}">${task.proposed_answer.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div class="actual-answer-panel${panelVisible}" id="panel-${task.id}">
+        <label>Resposta que enviaste (para melhorar o modelo):</label>
+        <textarea id="actual-${task.id}" placeholder="Cola aqui a resposta que enviaste..." rows="3">${savedActual}</textarea>
+        <button onclick="saveActual('${task.id}')">Guardar</button>
+      </div>
+    </div>` : '';
+
+  return `
+    <div class="task-item ${isDone ? 'done' : ''} ${isHidden ? 'hidden' : ''}"
+         id="task-${task.id}"
+         onclick="toggleTask('${task.id}')">
+      <div class="task-checkbox"></div>
+      <div class="task-body">
+        <div class="task-meta">
+          <span class="tag ${channelClass}">${channelIcon} ${task.channel}</span>
+          <span class="tag sender">👤 ${task.sender}</span>
+          ${task.priority === 'high' ? '<span class="tag priority-high">🔴 Urgente</span>' : ''}
+          ${task.escalate_to_tech ? '<span class="tag escalate">⬆️ Escalar para Tech</span>' : ''}
+        </div>
+        <div class="task-text">${task.text}</div>
+        ${answerBlock}
+        <div class="task-action" onclick="event.stopPropagation()">
+          <a class="slack-link" href="${task.permalink}" target="_blank">
+            💬 Open thread
+          </a>
+          <span style="font-size:0.72rem;color:var(--text2);margin-left:0.25rem">${task.date}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderAll() {
+  const state = loadState();
+  const evals = getEvals();
+  const container = document.getElementById('task-list');
+
+  const sections = [
+    { label: 'Urgente', filter: t => t.priority === 'high' },
+    { label: 'Decisões Pendentes', filter: t => t.priority !== 'high' && (t.text.startsWith('Decisão:') || t.text.startsWith('Aprovar')) },
+    { label: 'Respostas Pendentes', filter: t => t.priority !== 'high' && !t.text.startsWith('Decisão:') && !t.text.startsWith('Aprovar') },
+  ];
+
+  let html = '';
+  sections.forEach(section => {
+    const sectionTasks = TASKS.filter(section.filter);
+    if (!sectionTasks.length) return;
+
+    const visibleInSection = sectionTasks.filter(t => {
+      const isDone = !!state[t.id];
+      return (currentFilter === 'all') || (currentFilter === 'done' && isDone) || (currentFilter === 'pending' && !isDone);
+    });
+    if (!visibleInSection.length && currentFilter !== 'all') return;
+
+    html += `<div class="section-header">${section.label}</div>`;
+    sectionTasks.forEach(task => {
+      const taskEval = evals.find(e => e.taskId === task.id) || null;
+      html += renderTask(task, !!state[task.id], taskEval);
+    });
+  });
+
+  container.innerHTML = html;
+
+  const total = TASKS.length;
+  const done = TASKS.filter(t => !!state[t.id]).length;
+  const pending = total - done;
+  const pct = Math.round((done / total) * 100);
+
+  document.getElementById('m-total').textContent = total;
+  document.getElementById('m-done').textContent = done;
+  document.getElementById('m-pending').textContent = pending;
+  document.getElementById('m-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  ['all','pending','done'].forEach(k => {
+    document.getElementById('btn-' + k).classList.toggle('active', k === f);
+  });
+  renderAll();
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+}
+
+renderAll();
+</script>
+</body>
+</html>
