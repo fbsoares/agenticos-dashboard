@@ -27,6 +27,7 @@
       "id": "work",
       "label": "Work",
       "accent": "work",
+      "tab": "work",
       "grid": { "col": "1 / 5", "row": "1" },
       "links": [
         { "icon": "📅", "name": "Google Calendar",      "url": "https://calendar.google.com/calendar/u/0/r" },
@@ -43,6 +44,7 @@
       "id": "wip",
       "label": "WIP — Sprints",
       "accent": "sprint",
+      "tab": "work",
       "grid": { "col": "5 / 9", "row": "1" },
       "links": [
         { "icon": "🚀", "name": "Go Live",                      "url": "https://zmt.atlassian.net/issues?filter=10122" },
@@ -55,14 +57,16 @@
     },
     {
       "id": "agents",
-      "label": "Agents",
+      "label": "Agent Tools",
       "accent": "agents",
-      "grid": { "col": "9 / 13", "row": "1" },
+      "tab": "agents",
+      "grid": { "col": "1 / 13", "row": "1" },
       "links": [
+        { "icon": "◈",  "name": "Claude",           "url": "https://claude.ai/new" },
+        { "icon": "🪐", "name": "Antigravity",       "url": null },
+        { "icon": "⚡", "name": "Edgar",            "url": "https://edgar.dig-in.io/" },
         { "icon": "🌀", "name": "Spinnable",        "url": "https://www.spinnable.ai/" },
         { "icon": "✦",  "name": "Gemini",           "url": "https://gemini.google.com/" },
-        { "icon": "◈",  "name": "Claude",           "url": "https://claude.ai/new" },
-        { "icon": "⚡", "name": "Edgar",            "url": "https://edgar.dig-in.io/" },
         { "icon": "⚡", "name": "Skills Dashboard", "url": "skills.html" },
         { "icon": "◈",  "name": "Sessions",         "url": "session-dashboard.html" }
       ]
@@ -71,6 +75,7 @@
       "id": "data",
       "label": "Data Project @ Work",
       "accent": "data",
+      "tab": "work",
       "grid": { "col": "1 / 7", "row": "2" },
       "linksColumns": 2,
       "links": [
@@ -83,7 +88,8 @@
       "id": "home",
       "label": "Home",
       "accent": "home",
-      "grid": { "col": "7 / 10", "row": "2" },
+      "tab": "personal",
+      "grid": { "col": "1 / 7", "row": "3" },
       "links": [
         { "icon": "🏠", "name": "Daily Management", "url": "https://www.notion.so/Daily-Management-235294f28d9780a78b12eee8a92bc09d?pvs=12" },
         { "icon": "🤖", "name": "Reddit",           "url": "https://www.reddit.com/" }
@@ -93,7 +99,8 @@
       "id": "gaming",
       "label": "Gaming",
       "accent": "gaming",
-      "grid": { "col": "10 / 13", "row": "2" },
+      "tab": "personal",
+      "grid": { "col": "7 / 13", "row": "3" },
       "links": [
         { "icon": "🎮", "name": "Playline", "url": "https://www.notion.so/Gaming-Playline-300294f28d978042a699d354d0c17a34?showMoveTo=true" },
         { "icon": "📡", "name": "Twitch",   "url": "https://www.twitch.tv/" },
@@ -104,6 +111,7 @@
       "id": "infra",
       "label": "Infra & Cloud",
       "accent": "infra",
+      "tab": "work",
       "grid": { "col": "1 / 13", "row": "3" },
       "linksColumns": 2,
       "links": [
@@ -122,6 +130,7 @@
       "type": "dynamic",
       "label": "Reports",
       "accent": "reports",
+      "tab": "work",
       "grid": { "col": "1 / 13", "row": "4" }
     },
     {
@@ -129,6 +138,7 @@
       "type": "checklist",
       "label": "Checklist do dia",
       "accent": "checklist",
+      "tab": "work",
       "grid": { "col": "1 / 7", "row": "5" }
     },
     {
@@ -136,6 +146,7 @@
       "type": "announcements",
       "label": "Announcements",
       "accent": "announcements",
+      "tab": "work",
       "grid": { "col": "7 / 13", "row": "5" }
     },
     {
@@ -143,6 +154,7 @@
       "type": "news",
       "label": "News",
       "accent": "news",
+      "tab": "work",
       "grid": { "col": "1 / 9", "row": "6" }
     },
     {
@@ -150,7 +162,48 @@
       "type": "music",
       "label": "Music",
       "accent": "music",
+      "tab": "work",
       "grid": { "col": "9 / 13", "row": "6" }
+    },
+    {
+      "id": "personal-checklist",
+      "type": "checklist",
+      "label": "Personal Checklist",
+      "accent": "checklist",
+      "tab": "personal",
+      "grid": { "col": "1 / 7", "row": "2" }
+    },
+    {
+      "id": "personal-announcements",
+      "type": "announcements",
+      "label": "Personal Announcements",
+      "accent": "announcements",
+      "tab": "personal",
+      "grid": { "col": "7 / 13", "row": "2" }
+    },
+    {
+      "id": "personal-news",
+      "type": "news",
+      "label": "Personal News",
+      "accent": "news",
+      "tab": "personal",
+      "grid": { "col": "1 / 9", "row": "1" }
+    },
+    {
+      "id": "personal-music",
+      "type": "music",
+      "label": "Personal Music",
+      "accent": "music",
+      "tab": "personal",
+      "grid": { "col": "9 / 13", "row": "1" }
+    },
+    {
+      "id": "agent-sessions",
+      "type": "agent-sessions",
+      "label": "Active Sessions",
+      "accent": "agents",
+      "tab": "agents",
+      "grid": { "col": "1 / 13", "row": "2" }
     }
   ]
 }
