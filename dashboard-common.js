@@ -483,6 +483,10 @@ async function loadConfig() {
     pollMusic();
     setInterval(pollMusic, 300000);
   }
+  if (sections.some(s => s.type === 'agent-sessions') && typeof pollAgentSessions === 'function') {
+    pollAgentSessions();
+    setInterval(pollAgentSessions, 30000);
+  }
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────

@@ -681,11 +681,6 @@ function endAgentSession(id) {
     body: JSON.stringify({ status: 'ended' }),
   }).then(() => pollAgentSessions()).catch(() => {});
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  pollAgentSessions();
-  setInterval(pollAgentSessions, 30000);
-});
 </script>
 </body>
 </html>
