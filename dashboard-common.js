@@ -72,10 +72,10 @@ function pollSessions() {
         return `<div class="session-item">
           <span class="session-pulse"></span>
           <span class="session-label">Active</span>
-          <span class="session-name">${name}</span>
-          <span class="session-cwd" title="${fullPath}">${fullPath}</span>
-          ${branch ? `<span class="session-id">⎇ ${branch}</span>` : `<span class="session-id">${shortId}</span>`}
-          ${model  ? `<span class="session-time">${model}</span>` : ''}
+          <span class="session-name">${escHtml(name)}</span>
+          <span class="session-cwd" title="${escAttr(fullPath)}">${escHtml(fullPath)}</span>
+          ${branch ? `<span class="session-id">⎇ ${escHtml(branch)}</span>` : `<span class="session-id">${shortId}</span>`}
+          ${model  ? `<span class="session-time">${escHtml(model)}</span>` : ''}
           <span class="session-time">${time}</span>
           ${s.rc_url && /^https?:\/\//.test(s.rc_url) ? `<a class="session-rc-link" href="${s.rc_url}" target="_blank">↗ RC</a>` : ''}
         </div>`;
@@ -96,7 +96,7 @@ function pollReports() {
       }
       el.innerHTML = data.filter(r => r.file && !/^(?!https?:\/\/)[\w+.-]+:/i.test(r.file)).map(r => `<a class="link" href="${r.file}" target="_blank">
         <span class="link-icon">📄</span>
-        <span class="link-name">${r.title || r.name}</span>
+        <span class="link-name">${escHtml(r.title || r.name)}</span>
         <span class="link-arrow">↗</span>
       </a>`).join('');
     })
@@ -390,7 +390,7 @@ function renderSection(section) {
   const links = (section.links || []).filter(link => link.url && !/^(?!https?:\/\/)[\w+.-]+:/i.test(link.url)).map(link =>
     `<a class="link" href="${link.url}" target="_blank">
       <span class="link-icon">${escHtml(link.icon)}</span>
-      <span class="link-name">${link.name}</span>
+      <span class="link-name">${escHtml(link.name)}</span>
       <span class="link-arrow">↗</span>
     </a>`
   ).join('');

@@ -1041,9 +1041,9 @@ def delete_session(item_id):
 
 
 # ── Static files ─────────────────────────────────────────────────────────────
-# Serves dashboard.html, session-data.json, reports/*, skills-data.js, etc.
+# Serves dashboard-work.html, session-data.json, reports/*, skills-data.js, etc.
 
-@app.route("/", defaults={"path": "dashboard.html"})
+@app.route("/", defaults={"path": "dashboard-work.html"})
 @app.route("/<path:path>")
 def static_files(path):
     return send_from_directory(str(BASE), path)
