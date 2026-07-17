@@ -293,6 +293,18 @@ resource "coder_script" "clone_repos" {
   depends_on         = [coder_script.install_languages]
 }
 
+# Starts the Dashboard project's own server (python3 server.py, port 8765)
+# in the background so it's reachable via the "dashboard" coder_app below.
+resource "coder_script" "start_dashboard" {
+  agent_id           = coder_agent.main.id
+  display_name       = "Start Dashboard Server"
+  icon               = "/icon/code.svg"
+  run_on_start       = true
+  start_blocks_login = false
+  script             = replace(file("${path.module}/start-dashboard.sh"), "\r\n", "\n")
+  depends_on         = [coder_script.clone_repos]
+}
+
 # --- IDE modules ---
 
 module "code-server" {
@@ -360,6 +372,30 @@ module "git-clone" {
   version  = "~> 1.0"
   agent_id = coder_agent.main.id
   url      = data.coder_parameter.git_repo.value
+}
+
+# --- Dashboard app ---
+# Exposes this Dashboard project's own server (cloned by clone-repos.sh into
+# ~/dashboard and started by start-dashboard.sh) as a clickable app in the
+# Coder workspace UI, so it can be reached remotely through Coder's proxy.
+
+resource "coder_app" "dashboard" {
+  count        = data.coder_workspace.me.start_count
+  agent_id     = coder_agent.main.id
+  slug         = "dashboard"
+  display_name = "Dashboard"
+  icon         = "/icon/code.svg"
+  url          = "http://localhost:8765"
+  share        = "owner"
+  order        = 7
+
+  healthcheck {
+    url       = "http://localhost:8765"
+    interval  = 5
+    threshold = 6
+  }
+
+  depends_on = [coder_script.start_dashboard]
 }
 
 # --- Presets ---

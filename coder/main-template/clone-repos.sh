@@ -4,6 +4,7 @@ set -euo pipefail
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 ssh-keyscan -H gitlab.com >> ~/.ssh/known_hosts 2>/dev/null
+ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null
 
 ENTERPRISE_AGENT="$HOME/enterprise-agent"
 
@@ -32,5 +33,17 @@ for REPO in "${NESTED_REPOS[@]}"; do
     echo "Done: $(basename "$DIR")"
   fi
 done
+
+# Clone the Dashboard project itself (this template's own repo), so the
+# workspace can run and serve it directly (see start-dashboard.sh).
+DASHBOARD_DIR="$HOME/dashboard"
+
+if [ -d "$DASHBOARD_DIR/.git" ]; then
+  echo "Skipping dashboard (already cloned)"
+else
+  echo "Cloning dashboard..."
+  git clone git@github.com:fbsoares/agenticos-dashboard.git "$DASHBOARD_DIR"
+  echo "Done: dashboard"
+fi
 
 echo "Repository setup complete."
