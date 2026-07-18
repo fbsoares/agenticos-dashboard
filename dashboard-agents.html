@@ -610,14 +610,14 @@ let manualSessions = [];
 let fileSessions = [];
 
 function providerColor(p) {
-  return { claude: '#fb7360', antigravity: '#f59e0b', edgar: '#22c55e', other: '#5a6070' }[p] || '#5a6070';
+  return { claude: '#fb7360', antigravity: '#f59e0b', edgar: '#22c55e', spinnable: '#38bdf8', other: '#5a6070' }[p] || '#5a6070';
 }
 
 function renderAgentCard(s) {
   const color = providerColor(s.provider);
   const name = s.name || (s.cwd ? s.cwd.replace(/\/+$/,'').split('/').pop() : s.provider);
   const subLine = s.cwd || s.notes || '';
-  const canEnd = s.provider === 'edgar' || s.provider === 'other';
+  const canEnd = s.provider === 'edgar' || s.provider === 'spinnable' || s.provider === 'other';
   return `<div class="agent-card" style="--badge-color:${color}">
     <div class="agent-card-top">
       <span class="agent-card-badge">${escHtml(s.provider)}</span>
