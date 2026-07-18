@@ -26,7 +26,7 @@ Coder provisions a workspace with your selections and you can start developing i
 This template also deploys the Dashboard project itself (the repo this template lives in). On every workspace start:
 
 1. `clone-repos.sh` clones the Dashboard repo (via SSH) into `~/dashboard`, skipping the clone if it's already present.
-2. `start-dashboard.sh` starts the Dashboard's server (`python3 server.py`, port 8765) in the background, logging to `~/.dashboard-server.log`, and skips re-starting if it's already running.
+2. `start-dashboard.sh` creates a virtualenv at `~/dashboard/.venv`, installs the server's dependencies (`flask`, `flasgger`), then starts the Dashboard's server (`server.py`, port 8765) in the background, logging to `~/.dashboard-server.log`, and skips re-starting if it's already running.
 3. A **Dashboard** app is exposed in the Coder workspace UI (via a `coder_app` resource proxying `http://localhost:8765`), so you can open the Dashboard remotely through Coder without needing direct network access to the workspace.
 
 This clone/start/expose happens unconditionally (like the enterprise-agent repo clone) — no parameter toggle is required.
