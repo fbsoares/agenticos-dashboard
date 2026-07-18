@@ -527,16 +527,16 @@
   .agent-session-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 10px;
-    margin-bottom: 14px;
+    gap: 8px;
+    margin-bottom: 12px;
   }
   .agent-card {
     background: var(--surface2);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 12px 14px;
+    padding: 10px 12px;
   }
-  .agent-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .agent-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .agent-card-badge {
     font-family: 'DM Mono', monospace; font-size: 0.6rem;
     letter-spacing: 0.08em; text-transform: uppercase;
@@ -544,14 +544,16 @@
     border: 1px solid var(--badge-color, var(--muted));
     border-radius: 4px; padding: 1px 6px;
   }
-  .agent-card-name { font-size: 0.85rem; font-weight: 500; }
+  .agent-card-name { font-size: 0.85rem; font-weight: 500; line-height: 1.2; }
   .agent-card-sub {
     font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px;
+    line-height: 1.2;
   }
   .agent-card-prompt {
     font-size: 0.78rem; color: var(--muted); font-style: italic;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px;
+    line-height: 1.2;
   }
   .agent-card-bottom { display: flex; align-items: center; justify-content: space-between; }
   .agent-card-tag {
