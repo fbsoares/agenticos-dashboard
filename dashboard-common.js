@@ -378,6 +378,7 @@ function renderSection(section) {
       <div class="agent-register-form">
         <select id="agent-reg-provider">
           <option value="edgar">Edgar</option>
+          <option value="spinnable">Spinnable</option>
           <option value="other">Other</option>
         </select>
         <input id="agent-reg-name" type="text" placeholder="Name…">
