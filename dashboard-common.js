@@ -286,6 +286,72 @@ function pollMusic() {
     }).catch(() => {});
 }
 
+// ── Agent Projects ───────────────────────────────────────────────────────
+const AGENT_PROJECT_LABELS = { claude: 'Claude', gemini: 'Gemini', spinnable: 'Spinnable', edgar: 'Edgar' };
+
+function pollAgentProjects() {
+  fetch(`/api${API_BASE}/agent-projects?t=` + Date.now())
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(items => {
+      const el = document.getElementById('agent-projects-items');
+      if (!el) return;
+      if (!items.length) { el.innerHTML = '<div class="news-empty">No agent projects yet.</div>'; return; }
+      el.innerHTML = items.map(item => {
+        const agentLabel = AGENT_PROJECT_LABELS[item.agent] || item.agent || 'other';
+        const projectLink = /^https?:\/\//i.test(item.project_url)
+          ? `<a class="agent-project-link" href="${escAttr(item.project_url)}" target="_blank" rel="noopener">Project ↗</a>` : '';
+        const convLink = /^https?:\/\//i.test(item.conversation_url)
+          ? `<a class="agent-project-link" href="${escAttr(item.conversation_url)}" target="_blank" rel="noopener">Start conversation ↗</a>` : '';
+        return `<div class="agent-project-item" data-id="${escAttr(item.id)}">
+          <div class="agent-project-top">
+            <span class="agent-project-badge" data-agent="${escAttr(item.agent)}">${escHtml(agentLabel)}</span>
+            <span class="agent-project-title">${escHtml(item.title)}</span>
+            <button class="agent-project-delete" onclick="deleteAgentProject('${escAttr(item.id)}',this)" title="Remove">✕</button>
+          </div>
+          <div class="agent-project-links">${projectLink}${convLink}</div>
+        </div>`;
+      }).join('');
+    })
+    .catch(() => {});
+}
+
+function addAgentProject() {
+  const titleEl = document.getElementById('agent-project-add-title');
+  const urlEl   = document.getElementById('agent-project-add-url');
+  const convEl  = document.getElementById('agent-project-add-conv');
+  const agentEl = document.getElementById('agent-project-add-agent');
+  const title = (titleEl?.value || '').trim();
+  const url   = (urlEl?.value || '').trim();
+  if (!title) { titleEl?.focus(); return; }
+  if (!url || !/^https?:\/\//i.test(url)) { urlEl?.focus(); return; }
+  const body = {
+    title,
+    project_url: url,
+    conversation_url: (convEl?.value || '').trim(),
+    agent: agentEl?.value || 'claude',
+  };
+  fetch(`/api${API_BASE}/agent-projects`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(() => {
+      if (titleEl) titleEl.value = '';
+      if (urlEl)   urlEl.value   = '';
+      if (convEl)  convEl.value  = '';
+      pollAgentProjects();
+    })
+    .catch(() => {});
+}
+
+function deleteAgentProject(id, btn) {
+  fetch(`/api${API_BASE}/agent-projects/${id}`, { method: 'DELETE' })
+    .then(r => { if (!r.ok && r.status !== 404) throw new Error(r.statusText); })
+    .then(() => { btn.closest('.agent-project-item').remove(); })
+    .catch(() => {});
+}
+
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -384,6 +450,30 @@ function renderSection(section) {
         <input id="agent-reg-name" type="text" placeholder="Name…">
         <input id="agent-reg-notes" type="text" placeholder="Notes — what I'm doing…">
         <button onclick="startAgentSession()">Start Session</button>
+      </div>
+    </div>`;
+  }
+
+  if (section.type === 'agent-projects') {
+    return `<div id="${section.id}" class="section">
+      <div class="label">
+        <span class="dot"></span>
+        <span class="label-text">${section.label}</span>
+      </div>
+      <div class="agent-project-list" id="agent-projects-items">
+        <span style="color:var(--muted);font-size:0.78rem;font-family:'DM Mono',monospace;">Loading…</span>
+      </div>
+      <div class="agent-project-add">
+        <select id="agent-project-add-agent">
+          <option value="claude">Claude</option>
+          <option value="gemini">Gemini</option>
+          <option value="spinnable">Spinnable</option>
+          <option value="edgar">Edgar</option>
+        </select>
+        <input class="agent-project-add-title" id="agent-project-add-title" type="text" placeholder="Project title…">
+        <input class="agent-project-add-url" id="agent-project-add-url" type="url" placeholder="Project URL…">
+        <input class="agent-project-add-url" id="agent-project-add-conv" type="url" placeholder="Start conversation URL…">
+        <button class="agent-project-add-btn" onclick="addAgentProject()" title="Add project">+</button>
       </div>
     </div>`;
   }
@@ -487,6 +577,10 @@ async function loadConfig() {
   if (sections.some(s => s.type === 'agent-sessions') && typeof pollAgentSessions === 'function') {
     pollAgentSessions();
     setInterval(pollAgentSessions, 30000);
+  }
+  if (sections.some(s => s.type === 'agent-projects')) {
+    pollAgentProjects();
+    setInterval(pollAgentProjects, 30000);
   }
 }
 

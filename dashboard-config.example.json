@@ -204,6 +204,14 @@
       "accent": "agents",
       "tab": "agents",
       "grid": { "col": "1 / 13", "row": "2" }
+    },
+    {
+      "id": "agent-projects",
+      "type": "agent-projects",
+      "label": "Agent Projects",
+      "accent": "agents",
+      "tab": "agents",
+      "grid": { "col": "1 / 13", "row": "3" }
     }
   ]
 }

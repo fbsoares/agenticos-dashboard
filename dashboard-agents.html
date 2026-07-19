@@ -578,6 +578,55 @@
     padding: 8px 14px; cursor: pointer; color: var(--text); font-size: 0.82rem;
   }
   .agent-register-form button:hover { border-color: var(--border-hover); }
+
+  /* AGENT PROJECTS (agents page only) */
+  .agent-project-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .agent-project-item {
+    padding: 10px 12px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+  }
+  .agent-project-top { display: flex; align-items: center; gap: 8px; }
+  .agent-project-badge {
+    font-family: 'DM Mono', monospace; font-size: 0.6rem;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text); background: rgba(255,255,255,0.08);
+    border-radius: 4px; padding: 2px 6px; flex-shrink: 0;
+  }
+  .agent-project-badge[data-agent="claude"]    { color: #fb7360; border: 1px solid #fb7360; background: transparent; }
+  .agent-project-badge[data-agent="gemini"]    { color: #38bdf8; border: 1px solid #38bdf8; background: transparent; }
+  .agent-project-badge[data-agent="spinnable"] { color: #a78bfa; border: 1px solid #a78bfa; background: transparent; }
+  .agent-project-badge[data-agent="edgar"]     { color: #22c55e; border: 1px solid #22c55e; background: transparent; }
+  .agent-project-title { flex: 1; font-size: 0.85rem; font-weight: 500; line-height: 1.2; }
+  .agent-project-delete {
+    opacity: 0; background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 13px; padding: 2px 4px;
+    border-radius: 4px; transition: opacity 0.15s, color 0.15s;
+    flex-shrink: 0;
+  }
+  .agent-project-item:hover .agent-project-delete { opacity: 1; }
+  .agent-project-delete:hover { color: var(--text); }
+  .agent-project-links { display: flex; gap: 14px; margin-top: 6px; }
+  .agent-project-link {
+    font-family: 'DM Mono', monospace; font-size: 0.7rem;
+    color: var(--section-accent, var(--muted)); text-decoration: none;
+  }
+  .agent-project-link:hover { text-decoration: underline; }
+  .agent-project-add { display: flex; gap: 8px; flex-wrap: wrap; }
+  .agent-project-add select, .agent-project-add input {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.85rem;
+    outline: none;
+  }
+  .agent-project-add select:focus, .agent-project-add input:focus { border-color: var(--section-accent, #888); }
+  .agent-project-add input::placeholder { color: var(--muted); }
+  .agent-project-add-title { flex: 2; min-width: 140px; }
+  .agent-project-add-url { flex: 2; min-width: 140px; }
+  .agent-project-add-btn {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 14px; cursor: pointer; color: var(--text); font-size: 0.82rem;
+    transition: border-color 0.15s;
+  }
+  .agent-project-add-btn:hover { border-color: var(--section-accent, #888); }
 </style>
 </head>
 <body>
