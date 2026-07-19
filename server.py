@@ -28,8 +28,11 @@ Swagger(app, template={
         {"name": "Music"},
         {"name": "Personal"},
         {"name": "Sessions"},
+        {"name": "Agent Projects"},
     ],
 })
+
+AGENT_PROJECT_AGENTS = {"claude", "gemini", "spinnable", "edgar"}
 
 
 def _read(path: Path) -> list:
@@ -563,6 +566,120 @@ def delete_music(item_id):
         description: Not found
     """
     if not _delete("music.json", item_id):
+        return jsonify({"error": "not found"}), 404
+    return "", 204
+
+
+# ── Agent Projects ────────────────────────────────────────────────────────────
+
+@app.route("/api/agent-projects", methods=["GET"])
+def get_agent_projects():
+    """Get all agent projects.
+    ---
+    tags: [Agent Projects]
+    responses:
+      200:
+        description: List of agent projects
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/AgentProject'
+    definitions:
+      AgentProject:
+        type: object
+        properties:
+          id:
+            type: string
+            example: a1b2c3d4
+          title:
+            type: string
+            example: Dashboard revamp
+          project_url:
+            type: string
+            example: https://claude.ai/project/xyz
+          conversation_url:
+            type: string
+            example: https://claude.ai/chat/xyz
+          agent:
+            type: string
+            enum: [claude, gemini, spinnable, edgar]
+          created_at:
+            type: string
+            format: date-time
+    """
+    return jsonify(_list("agent-projects.json"))
+
+
+@app.route("/api/agent-projects", methods=["POST"])
+def add_agent_project():
+    """Add an agent project.
+    ---
+    tags: [Agent Projects]
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [title, project_url, agent]
+          properties:
+            title:
+              type: string
+              example: Dashboard revamp
+            project_url:
+              type: string
+              example: https://claude.ai/project/xyz
+            conversation_url:
+              type: string
+              example: https://claude.ai/chat/xyz
+            agent:
+              type: string
+              enum: [claude, gemini, spinnable, edgar]
+    responses:
+      201:
+        description: Created agent project
+        schema:
+          $ref: '#/definitions/AgentProject'
+      400:
+        description: title, project_url and a valid agent are required
+    """
+    body = request.get_json(force=True) or {}
+    title = str(body.get("title", "")).strip()
+    project_url = str(body.get("project_url", "")).strip()
+    conversation_url = str(body.get("conversation_url", "")).strip()
+    agent = str(body.get("agent", "")).strip().lower()
+    if not title or not project_url:
+        return jsonify({"error": "title and project_url required"}), 400
+    if agent not in AGENT_PROJECT_AGENTS:
+        return jsonify({"error": f"agent must be one of {sorted(AGENT_PROJECT_AGENTS)}"}), 400
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "title": title,
+        "project_url": project_url,
+        "conversation_url": conversation_url,
+        "agent": agent,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return jsonify(_add("agent-projects.json", item)), 201
+
+
+@app.route("/api/agent-projects/<item_id>", methods=["DELETE"])
+def delete_agent_project(item_id):
+    """Delete an agent project.
+    ---
+    tags: [Agent Projects]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      204:
+        description: Deleted
+      404:
+        description: Not found
+    """
+    if not _delete("agent-projects.json", item_id):
         return jsonify({"error": "not found"}), 404
     return "", 204
 
