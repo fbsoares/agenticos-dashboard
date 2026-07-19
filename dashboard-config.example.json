@@ -204,6 +204,14 @@
       "accent": "agents",
       "tab": "agents",
       "grid": { "col": "1 / 13", "row": "2" }
+    },
+    {
+      "id": "agent-checklist",
+      "type": "agent-checklist",
+      "label": "Tasks by Agent",
+      "accent": "agents",
+      "tab": "agents",
+      "grid": { "col": "1 / 13", "row": "3" }
     }
   ]
 }

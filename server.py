@@ -12,6 +12,10 @@ BASE = Path(__file__).parent.resolve()
 DATA = BASE / "data"
 DATA.mkdir(exist_ok=True)
 
+# Agent codes a checklist item can be attributed to (matches the "Agent Tools"
+# links in dashboard-config.json's agents section).
+VALID_AGENTS = {"Claude", "Gemini", "Spinnable", "Edgar"}
+
 app = Flask(__name__, static_folder=None)
 _lock = threading.Lock()
 
@@ -77,6 +81,26 @@ def _patch(filename: str, item_id: str, mutate_fn):
     return None
 
 
+def _mutate_checklist(item: dict, body: dict) -> None:
+    """Shared PATCH body-mutation logic for both /api/checklist and
+    /api/personal/checklist. Supports the original toggle-checked convention
+    plus optional agent attribution/dispatch fields.
+    """
+    has_agent = "agent" in body
+    has_session = "agent_session_id" in body
+    if has_agent:
+        agent = body.get("agent")
+        item["agent"] = agent if agent in VALID_AGENTS else None
+    if has_session:
+        session_id = body.get("agent_session_id")
+        session_id = str(session_id).strip() if session_id else ""
+        item["agent_session_id"] = session_id or None
+    if "checked" in body:
+        item["checked"] = bool(body["checked"])
+    elif not has_agent and not has_session:
+        item["checked"] = not item.get("checked", False)
+
+
 def _delete(filename: str, item_id: str) -> bool:
     with _lock:
         items = _read(DATA / filename)
@@ -129,6 +153,13 @@ def get_checklist():
           created_at:
             type: string
             format: date-time
+          agent:
+            type: string
+            enum: [Claude, Gemini, Spinnable, Edgar]
+            description: Agent this task is attributed to, if any.
+          agent_session_id:
+            type: string
+            description: Set once the attributed agent has picked up the task (marks it "dispatched" rather than merely "attributed").
     """
     return jsonify(_list("checklist.json"))
 
@@ -166,13 +197,15 @@ def add_checklist():
         "text": text,
         "checked": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "agent": None,
+        "agent_session_id": None,
     }
     return jsonify(_add("checklist.json", item)), 201
 
 
 @app.route("/api/checklist/<item_id>", methods=["PATCH"])
 def patch_checklist(item_id):
-    """Toggle or set checked state of a checklist item.
+    """Toggle/set checked state, or attribute/dispatch a checklist item to an agent.
     ---
     tags: [Checklist]
     parameters:
@@ -187,6 +220,13 @@ def patch_checklist(item_id):
           properties:
             checked:
               type: boolean
+            agent:
+              type: string
+              enum: [Claude, Gemini, Spinnable, Edgar]
+              description: Attribute this item to an agent. Send null/empty to unassign.
+            agent_session_id:
+              type: string
+              description: Set once the attributed agent has picked up the task (marks it "dispatched"). Send null/empty to clear.
     responses:
       200:
         description: Updated item
@@ -196,9 +236,7 @@ def patch_checklist(item_id):
         description: Not found
     """
     body = request.get_json(force=True) or {}
-    def mutate(item):
-        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
-    item = _patch("checklist.json", item_id, mutate)
+    item = _patch("checklist.json", item_id, lambda i: _mutate_checklist(i, body))
     if item is None:
         return jsonify({"error": "not found"}), 404
     return jsonify(item)
@@ -615,13 +653,15 @@ def add_personal_checklist():
         "text": text,
         "checked": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "agent": None,
+        "agent_session_id": None,
     }
     return jsonify(_add("personal-checklist.json", item)), 201
 
 
 @app.route("/api/personal/checklist/<item_id>", methods=["PATCH"])
 def patch_personal_checklist(item_id):
-    """Toggle or set checked state of a personal checklist item.
+    """Toggle/set checked state, or attribute/dispatch a personal checklist item to an agent.
     ---
     tags: [Personal]
     parameters:
@@ -629,6 +669,20 @@ def patch_personal_checklist(item_id):
         name: item_id
         type: string
         required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            checked:
+              type: boolean
+            agent:
+              type: string
+              enum: [Claude, Gemini, Spinnable, Edgar]
+              description: Attribute this item to an agent. Send null/empty to unassign.
+            agent_session_id:
+              type: string
+              description: Set once the attributed agent has picked up the task (marks it "dispatched"). Send null/empty to clear.
     responses:
       200:
         description: Updated item
@@ -636,9 +690,7 @@ def patch_personal_checklist(item_id):
         description: Not found
     """
     body = request.get_json(force=True) or {}
-    def mutate(item):
-        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
-    item = _patch("personal-checklist.json", item_id, mutate)
+    item = _patch("personal-checklist.json", item_id, lambda i: _mutate_checklist(i, body))
     if item is None:
         return jsonify({"error": "not found"}), 404
     return jsonify(item)

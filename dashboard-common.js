@@ -116,6 +116,21 @@ function escAttr(s) {
 }
 
 // ── Checklist ────────────────────────────────────────────────────────────
+const AGENT_CODES = ['Claude', 'Gemini', 'Spinnable', 'Edgar'];
+
+function checklistAgentControls(item) {
+  const options = ['<option value="">Agent…</option>']
+    .concat(AGENT_CODES.map(a => `<option value="${a}"${item.agent === a ? ' selected' : ''}>${a}</option>`))
+    .join('');
+  const statusBadge = item.agent
+    ? `<span class="checklist-agent-badge${item.agent_session_id ? ' dispatched' : ' attributed'}"
+         onclick="event.stopPropagation();promptChecklistSessionId('${escAttr(item.id)}','${escAttr(item.agent_session_id || '')}')"
+         title="${item.agent_session_id ? 'Dispatched — session ' + escAttr(item.agent_session_id) + ' (click to edit)' : 'Attributed, not yet dispatched (click to set session id)'}">${item.agent_session_id ? '● dispatched' : '○ attributed'}</span>`
+    : '';
+  return `<select class="checklist-agent-select" onclick="event.stopPropagation()"
+      onchange="setChecklistAgent('${escAttr(item.id)}', this.value)">${options}</select>${statusBadge}`;
+}
+
 function pollChecklist() {
   fetch(`/api${API_BASE}/checklist?t=` + Date.now())
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
@@ -126,6 +141,7 @@ function pollChecklist() {
         <div class="checklist-item${item.checked ? ' done' : ''}" onclick="toggleChecklist('${escAttr(item.id)}', this)">
           <span class="checklist-check">${item.checked ? '✓' : ''}</span>
           <span class="checklist-text">${escHtml(item.text)}</span>
+          ${checklistAgentControls(item)}
           <button class="checklist-copy" onclick="event.stopPropagation();copyChecklistItem(this,'${escAttr(item.text)}')" title="Copy">⎘</button>
           <button class="checklist-delete" onclick="event.stopPropagation();deleteChecklistItem('${escAttr(item.id)}',this)">✕</button>
         </div>`).join('');
@@ -145,6 +161,30 @@ function toggleChecklist(id, el) {
       el.classList.toggle('done', item.checked);
       el.querySelector('.checklist-check').textContent = item.checked ? '✓' : '';
     })
+    .catch(() => {});
+}
+
+function setChecklistAgent(id, agent) {
+  fetch(`/api${API_BASE}/checklist/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agent: agent || null}),
+  })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(() => pollChecklist())
+    .catch(() => {});
+}
+
+function promptChecklistSessionId(id, current) {
+  const sessionId = window.prompt('Agent session ID (blank to clear — marks as attributed-only):', current || '');
+  if (sessionId === null) return; // cancelled
+  fetch(`/api${API_BASE}/checklist/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agent_session_id: sessionId.trim() || null}),
+  })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(() => pollChecklist())
     .catch(() => {});
 }
 
@@ -174,6 +214,43 @@ function addChecklistItem(input) {
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
     .then(() => { input.value = ''; pollChecklist(); })
     .catch(() => {});
+}
+
+// ── Agent checklist filter (Agents tab — shows tasks attributed/dispatched
+// to an agent, across both the work and personal checklists) ──────────────
+let agentChecklistCache = [];
+
+function renderAgentChecklistFilter() {
+  const el = document.getElementById('agent-checklist-items');
+  if (!el) return;
+  const filterEl = document.getElementById('agent-checklist-filter');
+  const filter = filterEl ? filterEl.value : '';
+  const items = agentChecklistCache.filter(i => i.agent && (!filter || i.agent === filter));
+  if (!items.length) {
+    el.innerHTML = '<span style="color:var(--muted);font-size:0.78rem;font-family:\'DM Mono\',monospace;">No tasks attributed to an agent yet.</span>';
+    return;
+  }
+  el.innerHTML = items.map(item => `
+    <div class="agent-checklist-item${item.checked ? ' done' : ''}">
+      <span class="agent-checklist-source">${escHtml(item.source)}</span>
+      <span class="agent-checklist-text">${escHtml(item.text)}</span>
+      <span class="agent-checklist-agent-tag">${escHtml(item.agent)}</span>
+      <span class="checklist-agent-badge${item.agent_session_id ? ' dispatched' : ' attributed'}"
+        title="${item.agent_session_id ? 'Dispatched — session ' + escAttr(item.agent_session_id) : 'Attributed, not yet dispatched'}">${item.agent_session_id ? '● dispatched' : '○ attributed'}</span>
+    </div>`).join('');
+}
+
+function pollAgentChecklist() {
+  Promise.all([
+    fetch('/api/checklist?t=' + Date.now()).then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch('/api/personal/checklist?t=' + Date.now()).then(r => r.ok ? r.json() : []).catch(() => []),
+  ]).then(([work, personal]) => {
+    agentChecklistCache = [
+      ...work.map(i => ({...i, source: 'work'})),
+      ...personal.map(i => ({...i, source: 'personal'})),
+    ];
+    renderAgentChecklistFilter();
+  });
 }
 
 // ── Announcements ─────────────────────────────────────────────────────────
@@ -388,6 +465,22 @@ function renderSection(section) {
     </div>`;
   }
 
+  if (section.type === 'agent-checklist') {
+    const filterOptions = ['<option value="">All agents</option>']
+      .concat(AGENT_CODES.map(a => `<option value="${a}">${a}</option>`))
+      .join('');
+    return `<div id="${section.id}" class="section">
+      <div class="label">
+        <span class="dot"></span>
+        <span class="label-text">${section.label}</span>
+        <select class="agent-checklist-filter-select" id="agent-checklist-filter" onchange="renderAgentChecklistFilter()">${filterOptions}</select>
+      </div>
+      <div class="agent-checklist-list" id="agent-checklist-items">
+        <span style="color:var(--muted);font-size:0.78rem;font-family:'DM Mono',monospace;">Loading…</span>
+      </div>
+    </div>`;
+  }
+
   const links = (section.links || []).filter(link => link.url && !/^(?!https?:\/\/)[\w+.-]+:/i.test(link.url)).map(link =>
     `<a class="link" href="${link.url}" target="_blank">
       <span class="link-icon">${escHtml(link.icon)}</span>
@@ -487,6 +580,10 @@ async function loadConfig() {
   if (sections.some(s => s.type === 'agent-sessions') && typeof pollAgentSessions === 'function') {
     pollAgentSessions();
     setInterval(pollAgentSessions, 30000);
+  }
+  if (sections.some(s => s.type === 'agent-checklist')) {
+    pollAgentChecklist();
+    setInterval(pollAgentChecklist, 15000);
   }
 }
 
