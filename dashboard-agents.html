@@ -395,6 +395,22 @@
   }
   .checklist-text { flex: 1; font-size: 0.85rem; line-height: 1.3; }
   .checklist-item.done .checklist-text { text-decoration: line-through; color: var(--muted); }
+  .checklist-agent-select {
+    flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 6px; color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 0.65rem; outline: none;
+    max-width: 88px;
+  }
+  .checklist-agent-select:focus { border-color: var(--section-accent, #888); }
+  .checklist-agent-badge {
+    flex-shrink: 0; cursor: pointer;
+    font-family: 'DM Mono', monospace; font-size: 0.6rem;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    border-radius: 4px; padding: 2px 6px; border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .checklist-agent-badge.attributed { color: var(--muted); border-color: var(--border-hover); }
+  .checklist-agent-badge.dispatched { color: #34d399; border-color: rgba(52,211,153,0.4); }
   .checklist-copy {
     background: none; border: none; cursor: pointer;
     color: var(--muted); font-size: 0.8rem; padding: 0 4px;
@@ -578,6 +594,32 @@
     padding: 8px 14px; cursor: pointer; color: var(--text); font-size: 0.82rem;
   }
   .agent-register-form button:hover { border-color: var(--border-hover); }
+
+  /* AGENT CHECKLIST FILTER (agents page only) */
+  .agent-checklist-filter-select {
+    margin-left: auto;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 5px 10px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 0.72rem; outline: none;
+  }
+  .agent-checklist-filter-select:focus { border-color: var(--section-accent, #888); }
+  .agent-checklist-list { display: flex; flex-direction: column; gap: 6px; }
+  .agent-checklist-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+  }
+  .agent-checklist-item.done .agent-checklist-text { text-decoration: line-through; color: var(--muted); }
+  .agent-checklist-source {
+    flex-shrink: 0; font-family: 'DM Mono', monospace; font-size: 0.6rem;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--border-hover); border-radius: 4px; padding: 1px 6px;
+  }
+  .agent-checklist-text { flex: 1; font-size: 0.85rem; line-height: 1.3; min-width: 0; }
+  .agent-checklist-agent-tag {
+    flex-shrink: 0; font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    color: var(--section-accent, #888);
+  }
 </style>
 </head>
 <body>
