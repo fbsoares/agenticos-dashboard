@@ -116,21 +116,56 @@ function escAttr(s) {
 }
 
 // ── Checklist ────────────────────────────────────────────────────────────
+// Agent vocabulary shared with dashboard-agents.html's providerColor() list.
+const CHECKLIST_AGENTS = ['claude', 'antigravity', 'edgar', 'spinnable', 'other'];
+
+let checklistItemsCache = [];
+let checklistFilterAgent = '';
+
+function checklistAgentOptions(selected) {
+  return `<option value="">—</option>` + CHECKLIST_AGENTS.map(a =>
+    `<option value="${a}"${a === selected ? ' selected' : ''}>${a}</option>`).join('');
+}
+
+function renderChecklistItems() {
+  const el = document.getElementById('checklist-items');
+  if (!el) return;
+  const items = checklistFilterAgent
+    ? checklistItemsCache.filter(item => item.agent === checklistFilterAgent)
+    : checklistItemsCache;
+  if (!items.length) {
+    el.innerHTML = `<div class="checklist-empty">${checklistFilterAgent ? 'No items assigned to this agent.' : 'No items.'}</div>`;
+    return;
+  }
+  el.innerHTML = items.map(item => `
+    <div class="checklist-item${item.checked ? ' done' : ''}${item.session_id ? ' dispatched' : ''}" onclick="toggleChecklist('${escAttr(item.id)}', this)">
+      <span class="checklist-check">${item.checked ? '✓' : ''}</span>
+      <span class="checklist-text">${escHtml(item.text)}</span>
+      ${item.session_id ? `<span class="checklist-badge" title="${escAttr('Agent dispatched · session ' + item.session_id)}">dispatched</span>` : ''}
+      <select class="checklist-agent-select" title="Assign agent" onclick="event.stopPropagation()"
+        onchange="event.stopPropagation();assignChecklistAgent('${escAttr(item.id)}', this.value)">
+        ${checklistAgentOptions(item.agent)}
+      </select>
+      <button class="checklist-copy" onclick="event.stopPropagation();copyChecklistItem(this,'${escAttr(item.text)}')" title="Copy">⎘</button>
+      <button class="checklist-delete" onclick="event.stopPropagation();deleteChecklistItem('${escAttr(item.id)}',this)">✕</button>
+    </div>`).join('');
+}
+
 function pollChecklist() {
   fetch(`/api${API_BASE}/checklist?t=` + Date.now())
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
     .then(items => {
-      const el = document.getElementById('checklist-items');
-      if (!el) return;
-      el.innerHTML = items.map(item => `
-        <div class="checklist-item${item.checked ? ' done' : ''}" onclick="toggleChecklist('${escAttr(item.id)}', this)">
-          <span class="checklist-check">${item.checked ? '✓' : ''}</span>
-          <span class="checklist-text">${escHtml(item.text)}</span>
-          <button class="checklist-copy" onclick="event.stopPropagation();copyChecklistItem(this,'${escAttr(item.text)}')" title="Copy">⎘</button>
-          <button class="checklist-delete" onclick="event.stopPropagation();deleteChecklistItem('${escAttr(item.id)}',this)">✕</button>
-        </div>`).join('');
+      checklistItemsCache = items;
+      renderChecklistItems();
     })
     .catch(() => {});
+}
+
+function setChecklistFilter(agent, btn) {
+  checklistFilterAgent = agent;
+  const bar = btn.closest('.checklist-filter');
+  if (bar) bar.querySelectorAll('.checklist-filter-btn').forEach(b => b.classList.toggle('active', b === btn));
+  renderChecklistItems();
 }
 
 function toggleChecklist(id, el) {
@@ -142,8 +177,27 @@ function toggleChecklist(id, el) {
   })
     .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
     .then(item => {
+      const idx = checklistItemsCache.findIndex(i => i.id === item.id);
+      if (idx !== -1) checklistItemsCache[idx] = item;
       el.classList.toggle('done', item.checked);
       el.querySelector('.checklist-check').textContent = item.checked ? '✓' : '';
+    })
+    .catch(() => {});
+}
+
+function assignChecklistAgent(id, agent) {
+  // Reassigning (or clearing) the agent also clears any dispatch session,
+  // since a session_id belongs to the agent run that set it.
+  fetch(`/api${API_BASE}/checklist/${id}`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agent: agent || null, session_id: null}),
+  })
+    .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json(); })
+    .then(item => {
+      const idx = checklistItemsCache.findIndex(i => i.id === item.id);
+      if (idx !== -1) checklistItemsCache[idx] = item;
+      renderChecklistItems();
     })
     .catch(() => {});
 }
@@ -159,7 +213,10 @@ function copyChecklistItem(btn, text) {
 function deleteChecklistItem(id, btn) {
   fetch(`/api${API_BASE}/checklist/${id}`, { method: 'DELETE' })
     .then(r => { if (!r.ok && r.status !== 404) throw new Error(r.statusText); })
-    .then(() => { btn.closest('.checklist-item').remove(); })
+    .then(() => {
+      checklistItemsCache = checklistItemsCache.filter(i => i.id !== id);
+      btn.closest('.checklist-item').remove();
+    })
     .catch(() => {});
 }
 
@@ -307,11 +364,15 @@ function renderSection(section) {
     : '';
 
   if (section.type === 'checklist') {
+    const filterButtons = [`<button class="checklist-filter-btn active" data-agent="" onclick="setChecklistFilter('', this)">all</button>`]
+      .concat(CHECKLIST_AGENTS.map(a => `<button class="checklist-filter-btn" data-agent="${a}" onclick="setChecklistFilter('${a}', this)">${a}</button>`))
+      .join('');
     return `<div id="${section.id}" class="section">
       <div class="label">
         <span class="dot"></span>
         <span class="label-text">${section.label}</span>
       </div>
+      <div class="checklist-filter">${filterButtons}</div>
       <div class="checklist-list" id="checklist-items"></div>
       <div class="checklist-add">
         <input class="checklist-input" id="checklist-input" type="text" placeholder="Add item…"
