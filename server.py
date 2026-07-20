@@ -129,6 +129,16 @@ def get_checklist():
           created_at:
             type: string
             format: date-time
+          agent:
+            type: string
+            description: Agent code the item is assigned to (e.g. claude, antigravity, edgar, spinnable, other), or null if unassigned.
+            x-nullable: true
+            example: claude
+          session_id:
+            type: string
+            description: Set by the assigned agent when it dispatches to work this item. Presence marks the item as "agent dispatched".
+            x-nullable: true
+            example: null
     """
     return jsonify(_list("checklist.json"))
 
@@ -166,13 +176,15 @@ def add_checklist():
         "text": text,
         "checked": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "agent": None,
+        "session_id": None,
     }
     return jsonify(_add("checklist.json", item)), 201
 
 
 @app.route("/api/checklist/<item_id>", methods=["PATCH"])
 def patch_checklist(item_id):
-    """Toggle or set checked state of a checklist item.
+    """Toggle/set checked state, assign an agent, or set the dispatch session id of a checklist item.
     ---
     tags: [Checklist]
     parameters:
@@ -187,6 +199,14 @@ def patch_checklist(item_id):
           properties:
             checked:
               type: boolean
+            agent:
+              type: string
+              description: Agent code to assign (e.g. claude, antigravity, edgar, spinnable, other). Pass null to unassign.
+              x-nullable: true
+            session_id:
+              type: string
+              description: Set by the assigned agent when it dispatches to work this item. Pass null to clear dispatch state.
+              x-nullable: true
     responses:
       200:
         description: Updated item
@@ -197,7 +217,18 @@ def patch_checklist(item_id):
     """
     body = request.get_json(force=True) or {}
     def mutate(item):
-        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
+        touched = False
+        if "checked" in body:
+            item["checked"] = bool(body["checked"])
+            touched = True
+        if "agent" in body:
+            item["agent"] = body["agent"]
+            touched = True
+        if "session_id" in body:
+            item["session_id"] = body["session_id"]
+            touched = True
+        if not touched:
+            item["checked"] = not item.get("checked", False)
     item = _patch("checklist.json", item_id, mutate)
     if item is None:
         return jsonify({"error": "not found"}), 404
@@ -615,13 +646,15 @@ def add_personal_checklist():
         "text": text,
         "checked": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "agent": None,
+        "session_id": None,
     }
     return jsonify(_add("personal-checklist.json", item)), 201
 
 
 @app.route("/api/personal/checklist/<item_id>", methods=["PATCH"])
 def patch_personal_checklist(item_id):
-    """Toggle or set checked state of a personal checklist item.
+    """Toggle/set checked state, assign an agent, or set the dispatch session id of a personal checklist item.
     ---
     tags: [Personal]
     parameters:
@@ -629,15 +662,43 @@ def patch_personal_checklist(item_id):
         name: item_id
         type: string
         required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            checked:
+              type: boolean
+            agent:
+              type: string
+              description: Agent code to assign (e.g. claude, antigravity, edgar, spinnable, other). Pass null to unassign.
+              x-nullable: true
+            session_id:
+              type: string
+              description: Set by the assigned agent when it dispatches to work this item. Pass null to clear dispatch state.
+              x-nullable: true
     responses:
       200:
         description: Updated item
+        schema:
+          $ref: '#/definitions/ChecklistItem'
       404:
         description: Not found
     """
     body = request.get_json(force=True) or {}
     def mutate(item):
-        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
+        touched = False
+        if "checked" in body:
+            item["checked"] = bool(body["checked"])
+            touched = True
+        if "agent" in body:
+            item["agent"] = body["agent"]
+            touched = True
+        if "session_id" in body:
+            item["session_id"] = body["session_id"]
+            touched = True
+        if not touched:
+            item["checked"] = not item.get("checked", False)
     item = _patch("personal-checklist.json", item_id, mutate)
     if item is None:
         return jsonify({"error": "not found"}), 404
