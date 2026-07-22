@@ -1,45 +1,53 @@
-# Sync API with Bearer Token Auth — Implementation Plan
+# Dashboard Sync Server (separate process) — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `/api/sync/*` namespace to `server.py` that is bearer-token-authenticated, documented in Swagger, and safe to expose over a Cloudflare tunnel — so other Dashboard instances (other machines/accounts) can pull sessions, reports, and checklist data for aggregation.
+**Goal:** Ship a second, standalone Flask process — `sync_server.py`, its own port — that exposes bearer-token-authenticated, read (sessions, reports) and read/write (checklist) endpoints for aggregating multiple Dashboard instances, without touching the existing local-only `server.py` beyond a data-access refactor.
 
-**Architecture:** Everything lives in the existing single-file `server.py` (matches the codebase's established pattern — every other resource group, Checklist/Announcements/News/Music/Personal/Sessions, is a section in this one file). A `require_token` decorator wraps four new read-only GET routes. Token resolution happens once at process start (env var `DASHBOARD_SYNC_TOKEN`, falling back to a `sync.token` key in the gitignored `dashboard-config.json`) and is gated behind an explicit `DASHBOARD_SYNC_ENABLED=true` opt-in so existing local-only deployments don't change behavior or start crashing. CORS headers are dropped entirely on `/api/sync/*` since it's server-to-server traffic, not browser traffic.
+**Architecture:** Two separate Flask apps on two ports:
+- `server.py` (unchanged behavior, port 8765, no auth) — the existing local dashboard UI + full CRUD API.
+- `sync_server.py` (new, port 8766, bearer-token-gated on every route) — the only thing a Cloudflare tunnel needs to point at, since a free Cloudflare account can't easily do path-based routing rules. One hostname → one port, no rules.
 
-**Tech Stack:** Python 3.12, Flask 3.1, flasgger 0.9.7 (already installed in `.venv`), pytest (new dev dependency, installed into `.venv` but not persisted to any requirements file — this repo has none).
+Both processes read/write the same JSON files under `data/`. That means checklist writes can now come from two independent OS processes at once (a user editing locally in `server.py`, an aggregator hitting `sync_server.py`), so the shared data-access helpers move into a new dependency-free module, `dashboard_data.py`, and gain an OS-level file lock (`fcntl.flock`) in addition to the existing in-process `threading.Lock` — the in-process lock alone only serializes threads within one process, not across two.
+
+Sessions and reports stay **GET-only** on the sync side — they're written by agents running locally against `server.py`/the filesystem directly, never by a remote aggregator. Checklist gets full CRUD (GET/POST/PATCH/DELETE) on the sync side, because the actual driving use case is: create/check/delete a task on a machine you don't have direct access to, from the aggregating dashboard. There's exactly one writer location per list (the instance's own `checklist.json` / `personal-checklist.json`, now lock-protected) whether the write comes in locally or via sync — so there's no multi-writer conflict to resolve, just a normal authenticated remote write to the one file that already exists.
+
+**Tech Stack:** Python 3.12, Flask 3.1, flasgger 0.9.7 (already installed in `.venv`), pytest (new dev dependency, installed into `.venv`, no requirements file exists in this repo to pin it in).
 
 ## Global Constraints
 
-- Zero behavior change to existing `/api/{checklist,announcements,news,music,personal/*,sessions}` routes — no new required headers, no CORS changes on those paths.
-- Sync is opt-in: if `DASHBOARD_SYNC_ENABLED` is not `"true"`, `/api/sync/*` always returns `503 {"error": "sync not enabled"}`, regardless of token env vars being set. This keeps the default (local, no env vars set) working exactly as today.
-- When sync **is** enabled, missing token config is a hard boot failure (`SystemExit`), not a silent unauthenticated fallback.
-- 401 body is always exactly `{"error": "unauthorized"}`, matching the issue's spec.
-- Token comparison uses `hmac.compare_digest` — never `==`.
-- v1 is GET-only. No POST/mirror-back routes, no write-conflict handling — explicitly out of scope per the issue's non-goals.
+- Zero behavior change to `server.py`'s routes, responses, or headers — the only change to that file is swapping its private helpers for imports from `dashboard_data.py`.
+- `sync_server.py` requires a token to even start — there's no `DASHBOARD_SYNC_ENABLED` opt-in flag like an earlier draft of this plan had, because this process's only job is sync; if you're running it, sync is enabled by definition. Missing token (env `DASHBOARD_SYNC_TOKEN`, or `dashboard-config.json`'s `sync.token` key) is a hard boot failure (`SystemExit`).
+- 401 body is always exactly `{"error": "unauthorized"}`. Token comparison uses `hmac.compare_digest` — never `==`.
+- `sync_server.py` never sends `Access-Control-Allow-*` headers — it's server-to-server traffic (aggregator → instance), not browser traffic, so there's nothing to add and nothing to guard.
+- `/apidocs`, `/apispec_1.json`, `/flasgger_static/*` on `sync_server.py` are excluded from the auth gate — Swagger UI needs to load before you can supply a token to it, and the issue's own rollout section says the tunnel maps `/apidocs` alongside `/api/sync/*`.
 - Report files are served only by looking up a `name` from `reports/reports-index.json` and resolving to `Path(entry["file"]).name` before calling `send_from_directory` — never take a raw filename/path from the client.
-- New tests live in `tests/`, use `pytest` + Flask's `app.test_client()`, and isolate themselves from the real `data/`/`reports/` directories via `monkeypatch.setattr` on the module's path constants (never read/write the developer's real personal data during tests).
+- Any function in `dashboard_data.py` that mutates a JSON file (`_add`, `_add_first`, `_patch`, `_delete`) takes the cross-process file lock for the whole read-modify-write, not just the in-process one.
+- New tests live in `tests/`, use `pytest` + Flask's `app.test_client()`, and isolate themselves from the real `data/`/`reports/` directories via `monkeypatch.setattr` on the module's path constants — never read/write the developer's real personal data during tests.
 
 ---
 
-### Task 1: Test harness + sync token resolution
+### Task 1: Extract `dashboard_data.py` with cross-process file locking; refactor `server.py` to use it
 
 **Files:**
-- Create: `tests/__init__.py` (empty — makes `tests` importable as a package, matches nothing special but avoids pytest rootdir ambiguity)
+- Create: `dashboard_data.py`
+- Modify: `server.py` — remove its private `BASE`/`DATA`/`_lock`/`_read`/`_write`/`_list`/`_add`/`_add_first`/`_patch`/`_delete` (currently lines 1–66), replace with an import from `dashboard_data`.
+- Modify: `.gitignore` — add `data/*.lock`.
+- Create: `tests/__init__.py` (empty — makes `tests` importable, avoids pytest rootdir ambiguity)
 - Create: `tests/conftest.py`
-- Create: `tests/test_sync_token.py`
-- Modify: `server.py` — add imports and `_resolve_sync_token` / `_config_sync_token` near the top, after the existing `DATA`/`BASE` setup (around line 13, right after `DATA.mkdir(exist_ok=True)`), before `app = Flask(...)`.
+- Create: `tests/test_dashboard_data.py`
+- Create: `tests/test_server_smoke.py`
 
 **Interfaces:**
-- Produces: `server._resolve_sync_token() -> str | None` — reads `DASHBOARD_SYNC_ENABLED` env var; returns `None` if not `"true"`; otherwise returns the token (env `DASHBOARD_SYNC_TOKEN`, or `dashboard-config.json`'s `sync.token` key) or raises `SystemExit` if neither is set.
-- Produces: `server.SYNC_TOKEN` — module-level value, `_resolve_sync_token()` evaluated once at import time. Later tasks' `require_token` decorator reads this **by name at call time** (not captured in a closure), so tests can do `monkeypatch.setattr(server, "SYNC_TOKEN", "...")` to simulate any state without re-importing the module.
-- Consumes (later tasks): none.
+- Produces: `dashboard_data.BASE: Path`, `dashboard_data.DATA: Path`, `dashboard_data.REPORTS_DIR: Path` (= `BASE / "reports"`), `dashboard_data.REPORTS_INDEX_PATH: Path` (= `REPORTS_DIR / "reports-index.json"`), `dashboard_data._read(path: Path) -> list`, `dashboard_data._write(path: Path, data: list) -> None`, `dashboard_data._list(filename: str, filter_fn=None) -> list`, `dashboard_data._add(filename: str, item: dict) -> dict`, `dashboard_data._add_first(filename: str, item: dict) -> dict`, `dashboard_data._patch(filename: str, item_id: str, mutate_fn) -> dict | None`, `dashboard_data._delete(filename: str, item_id: str) -> bool`. Signatures are identical to `server.py`'s current private helpers — this is a pure extraction, not a redesign, except for the added locking.
+- Consumes (later tasks): `sync_server.py` (Task 2 onward) imports the same names from `dashboard_data`.
 
 - [ ] **Step 1: Install pytest into the project venv**
 
 Run: `.venv/bin/pip install --quiet pytest`
-Expected: exits 0, no output (quiet mode). Verify with `.venv/bin/python -c "import pytest; print(pytest.__version__)"` — should print a version like `8.x.x`.
+Expected: exits 0. Verify with `.venv/bin/python -c "import pytest; print(pytest.__version__)"` — prints something like `8.x.x`.
 
-- [ ] **Step 2: Create the test package files**
+- [ ] **Step 2: Create the test package scaffolding**
 
 `tests/__init__.py`:
 ```python
@@ -48,380 +56,118 @@ Expected: exits 0, no output (quiet mode). Verify with `.venv/bin/python -c "imp
 
 `tests/conftest.py`:
 ```python
+import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# sync_server.py resolves its token at import time and exits if none is
+# configured. Set a default here, before any test file imports it, so
+# collection never crashes regardless of the developer's real env. Individual
+# tests override behavior via monkeypatch.setattr(sync_server, "SYNC_TOKEN", ...).
+os.environ.setdefault("DASHBOARD_SYNC_TOKEN", "test-session-token")
 ```
 
-- [ ] **Step 3: Write the failing test for token resolution**
+- [ ] **Step 3: Write the failing tests for `dashboard_data`**
 
-`tests/test_sync_token.py`:
+`tests/test_dashboard_data.py`:
 ```python
 import json
+from concurrent.futures import ProcessPoolExecutor
 
 import pytest
 
-import server
+import dashboard_data
 
 
-def test_disabled_by_default(monkeypatch):
-    monkeypatch.delenv("DASHBOARD_SYNC_ENABLED", raising=False)
-    assert server._resolve_sync_token() is None
+@pytest.fixture
+def data_dir(tmp_path, monkeypatch):
+    d = tmp_path / "data"
+    d.mkdir()
+    monkeypatch.setattr(dashboard_data, "DATA", d)
+    return d
 
 
-def test_enabled_true_case_sensitive_lowercase(monkeypatch):
-    monkeypatch.setenv("DASHBOARD_SYNC_ENABLED", "TRUE")
-    monkeypatch.delenv("DASHBOARD_SYNC_TOKEN", raising=False)
-    monkeypatch.setattr(server, "BASE", server.BASE)  # no config file at BASE by default
-    assert server._resolve_sync_token() is None
+def test_read_missing_file_returns_empty_list(data_dir):
+    assert dashboard_data._read(data_dir / "nope.json") == []
 
 
-def test_enabled_reads_token_from_env(monkeypatch):
-    monkeypatch.setenv("DASHBOARD_SYNC_ENABLED", "true")
-    monkeypatch.setenv("DASHBOARD_SYNC_TOKEN", "abc123")
-    assert server._resolve_sync_token() == "abc123"
+def test_read_invalid_json_returns_empty_list(data_dir):
+    (data_dir / "bad.json").write_text("{not json", encoding="utf-8")
+    assert dashboard_data._read(data_dir / "bad.json") == []
 
 
-def test_enabled_falls_back_to_config_file(monkeypatch, tmp_path):
-    monkeypatch.setenv("DASHBOARD_SYNC_ENABLED", "true")
-    monkeypatch.delenv("DASHBOARD_SYNC_TOKEN", raising=False)
-    (tmp_path / "dashboard-config.json").write_text(
-        json.dumps({"sync": {"token": "cfg-token"}}), encoding="utf-8"
-    )
-    monkeypatch.setattr(server, "BASE", tmp_path)
-    assert server._resolve_sync_token() == "cfg-token"
+def test_write_then_read_round_trips(data_dir):
+    dashboard_data._write(data_dir / "x.json", [{"id": "1"}])
+    assert dashboard_data._read(data_dir / "x.json") == [{"id": "1"}]
 
 
-def test_enabled_without_any_token_fails_fast(monkeypatch, tmp_path):
-    monkeypatch.setenv("DASHBOARD_SYNC_ENABLED", "true")
-    monkeypatch.delenv("DASHBOARD_SYNC_TOKEN", raising=False)
-    monkeypatch.setattr(server, "BASE", tmp_path)  # no dashboard-config.json here
-    with pytest.raises(SystemExit):
-        server._resolve_sync_token()
+def test_add_appends_and_persists(data_dir):
+    dashboard_data._add("x.json", {"id": "1"})
+    dashboard_data._add("x.json", {"id": "2"})
+    assert dashboard_data._read(data_dir / "x.json") == [{"id": "1"}, {"id": "2"}]
+
+
+def test_add_first_prepends(data_dir):
+    dashboard_data._add_first("x.json", {"id": "1"})
+    dashboard_data._add_first("x.json", {"id": "2"})
+    assert dashboard_data._read(data_dir / "x.json") == [{"id": "2"}, {"id": "1"}]
+
+
+def test_patch_mutates_matching_item(data_dir):
+    dashboard_data._write(data_dir / "x.json", [{"id": "1", "checked": False}])
+    result = dashboard_data._patch("x.json", "1", lambda i: i.__setitem__("checked", True))
+    assert result == {"id": "1", "checked": True}
+    assert dashboard_data._read(data_dir / "x.json") == [{"id": "1", "checked": True}]
+
+
+def test_patch_missing_id_returns_none(data_dir):
+    dashboard_data._write(data_dir / "x.json", [])
+    assert dashboard_data._patch("x.json", "missing", lambda i: None) is None
+
+
+def test_delete_removes_matching_item(data_dir):
+    dashboard_data._write(data_dir / "x.json", [{"id": "1"}, {"id": "2"}])
+    assert dashboard_data._delete("x.json", "1") is True
+    assert dashboard_data._read(data_dir / "x.json") == [{"id": "2"}]
+
+
+def test_delete_missing_id_returns_false(data_dir):
+    dashboard_data._write(data_dir / "x.json", [])
+    assert dashboard_data._delete("x.json", "missing") is False
+
+
+def _add_one(args):
+    # Runs in a separate process (ProcessPoolExecutor) — re-imports dashboard_data
+    # fresh and points it at the same on-disk directory as the parent test.
+    data_dir_str, item_id = args
+    import dashboard_data as dd
+    from pathlib import Path
+    dd.DATA = Path(data_dir_str)
+    dd._add("concurrent.json", {"id": item_id})
+    return item_id
+
+
+def test_add_is_safe_across_processes(data_dir):
+    # This is the regression test for the bug this task exists to fix: two
+    # separate OS processes (server.py and sync_server.py) both calling _add
+    # on the same file. Without a cross-process lock, concurrent
+    # read-modify-write cycles lose updates (item counts. If dashboard_data
+    # regresses to threading.Lock alone, this test becomes flaky/fails under
+    # load — that's the point.
+    dashboard_data._write(data_dir / "concurrent.json", [])
+    n = 20
+    args = [(str(data_dir), str(i)) for i in range(n)]
+    with ProcessPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(_add_one, args))
+    assert len(results) == n
+    items = json.loads((data_dir / "concurrent.json").read_text(encoding="utf-8"))
+    assert len(items) == n
+    assert {i["id"] for i in items} == {str(i) for i in range(n)}
 ```
 
-Note on `test_enabled_true_case_sensitive_lowercase`: this documents that only the literal string `"true"` enables sync (matches the `"true"` string check used in `_resolve_sync_token`, mirroring how the codebase already checks `request.args.get("active") == "true"` in `get_sessions`).
-
-- [ ] **Step 4: Run tests to verify they fail**
-
-Run: `.venv/bin/python -m pytest tests/test_sync_token.py -v`
-Expected: `ImportError` or `AttributeError: module 'server' has no attribute '_resolve_sync_token'` (function doesn't exist yet).
-
-- [ ] **Step 5: Implement `_resolve_sync_token` in server.py**
-
-In `server.py`, add `import hmac` and `import os` to the top imports (currently `json`, `threading`, `uuid`, `datetime`/`timezone`, `pathlib.Path`):
-
-```python
-import hmac
-import json
-import os
-import threading
-import uuid
-```
-
-Then, immediately after `DATA.mkdir(exist_ok=True)` (currently line 13) and before `app = Flask(__name__, static_folder=None)`:
-
-```python
-def _config_sync_token() -> str | None:
-    try:
-        config = json.loads((BASE / "dashboard-config.json").read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
-        return None
-    return config.get("sync", {}).get("token")
-
-
-def _resolve_sync_token() -> str | None:
-    if os.environ.get("DASHBOARD_SYNC_ENABLED") != "true":
-        return None
-    token = os.environ.get("DASHBOARD_SYNC_TOKEN") or _config_sync_token()
-    if not token:
-        raise SystemExit(
-            "DASHBOARD_SYNC_ENABLED=true but no token configured. "
-            "Set DASHBOARD_SYNC_TOKEN or dashboard-config.json's 'sync.token'."
-        )
-    return token
-
-
-SYNC_TOKEN = _resolve_sync_token()
-```
-
-- [ ] **Step 6: Run tests to verify they pass**
-
-Run: `.venv/bin/python -m pytest tests/test_sync_token.py -v`
-Expected: 5 passed.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add tests/__init__.py tests/conftest.py tests/test_sync_token.py server.py
-git commit -m "feat: add sync token resolution (env var or config, opt-in via DASHBOARD_SYNC_ENABLED)"
-```
-
----
-
-### Task 2: `require_token` decorator + CORS namespace guard
-
-**Files:**
-- Modify: `server.py` — add `require_token` decorator after the `SYNC_TOKEN = _resolve_sync_token()` line from Task 1; modify the existing `_cors` function (search for `def _cors(resp):`).
-- Create: `tests/test_sync_auth.py`
-
-**Interfaces:**
-- Consumes: `server.SYNC_TOKEN` (Task 1).
-- Produces: `server.require_token` — a decorator for Flask view functions. On call: if `SYNC_TOKEN` is `None` → `503 {"error": "sync not enabled"}`. If `Authorization` header missing/malformed or token doesn't match → `401 {"error": "unauthorized"}` (logged via `app.logger.warning`). Otherwise calls the wrapped view.
-- Produces (test-only route): none yet — this task tests the decorator against a throwaway route registered inside the test file itself, since no `/api/sync/*` routes exist until Task 4. This keeps Task 2 self-contained and avoids forward-referencing routes that don't exist yet.
-
-- [ ] **Step 1: Write the failing test**
-
-`tests/test_sync_auth.py`:
-```python
-import server
-
-
-def _register_probe_route():
-    if "sync_probe" not in server.app.view_functions:
-        @server.app.route("/api/sync/__probe", methods=["GET"])
-        @server.require_token
-        def sync_probe():
-            return {"ok": True}
-
-
-def test_disabled_returns_503(monkeypatch):
-    _register_probe_route()
-    monkeypatch.setattr(server, "SYNC_TOKEN", None)
-    client = server.app.test_client()
-    resp = client.get("/api/sync/__probe", headers={"Authorization": "Bearer whatever"})
-    assert resp.status_code == 503
-    assert resp.get_json() == {"error": "sync not enabled"}
-
-
-def test_missing_header_returns_401(monkeypatch):
-    _register_probe_route()
-    monkeypatch.setattr(server, "SYNC_TOKEN", "s3cr3t")
-    client = server.app.test_client()
-    resp = client.get("/api/sync/__probe")
-    assert resp.status_code == 401
-    assert resp.get_json() == {"error": "unauthorized"}
-
-
-def test_wrong_token_returns_401(monkeypatch):
-    _register_probe_route()
-    monkeypatch.setattr(server, "SYNC_TOKEN", "s3cr3t")
-    client = server.app.test_client()
-    resp = client.get("/api/sync/__probe", headers={"Authorization": "Bearer nope"})
-    assert resp.status_code == 401
-
-
-def test_correct_token_returns_200(monkeypatch):
-    _register_probe_route()
-    monkeypatch.setattr(server, "SYNC_TOKEN", "s3cr3t")
-    client = server.app.test_client()
-    resp = client.get("/api/sync/__probe", headers={"Authorization": "Bearer s3cr3t"})
-    assert resp.status_code == 200
-    assert resp.get_json() == {"ok": True}
-
-
-def test_sync_namespace_drops_cors_header(monkeypatch):
-    _register_probe_route()
-    monkeypatch.setattr(server, "SYNC_TOKEN", "s3cr3t")
-    client = server.app.test_client()
-    resp = client.get("/api/sync/__probe", headers={"Authorization": "Bearer s3cr3t"})
-    assert "Access-Control-Allow-Origin" not in resp.headers
-
-
-def test_local_namespace_keeps_cors_header():
-    client = server.app.test_client()
-    resp = client.get("/api/checklist")
-    assert resp.headers.get("Access-Control-Allow-Origin") == "*"
-```
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `.venv/bin/python -m pytest tests/test_sync_auth.py -v`
-Expected: `AttributeError: module 'server' has no attribute 'require_token'`.
-
-- [ ] **Step 3: Implement `require_token` in server.py**
-
-Add `import functools` to the imports:
-```python
-import functools
-import hmac
-import json
-import os
-import threading
-import uuid
-```
-
-After `SYNC_TOKEN = _resolve_sync_token()` (end of Task 1's block):
-
-```python
-def require_token(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        if SYNC_TOKEN is None:
-            return jsonify({"error": "sync not enabled"}), 503
-        auth = request.headers.get("Authorization", "")
-        prefix = "Bearer "
-        supplied = auth[len(prefix):] if auth.startswith(prefix) else None
-        if not supplied or not hmac.compare_digest(supplied, SYNC_TOKEN):
-            app.logger.warning("sync auth failed from %s on %s", request.remote_addr, request.path)
-            return jsonify({"error": "unauthorized"}), 401
-        return fn(*args, **kwargs)
-    return wrapper
-```
-
-- [ ] **Step 4: Update `_cors` to drop headers on `/api/sync/*`**
-
-Find the existing `_cors` function:
-```python
-@app.after_request
-def _cors(resp):
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    return resp
-```
-
-Replace with:
-```python
-@app.after_request
-def _cors(resp):
-    if request.path.startswith("/api/sync/"):
-        return resp
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
-    return resp
-```
-
-- [ ] **Step 5: Run tests to verify they pass**
-
-Run: `.venv/bin/python -m pytest tests/test_sync_auth.py -v`
-Expected: 6 passed.
-
-- [ ] **Step 6: Run the full suite so far**
-
-Run: `.venv/bin/python -m pytest tests/ -v`
-Expected: all tests from Task 1 and Task 2 pass (11 total).
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add server.py tests/test_sync_auth.py
-git commit -m "feat: add require_token decorator and drop CORS headers on /api/sync/*"
-```
-
----
-
-### Task 3: Swagger `Sync` tag + `securityDefinitions`
-
-**Files:**
-- Modify: `server.py` — the `Swagger(app, template={...})` call (currently lines 18–32).
-
-**Interfaces:**
-- Consumes: none new.
-- Produces: `/apidocs` now shows a `Sync` tag and a `bearerAuth` security scheme that Task 4's route docstrings reference via `security: [{bearerAuth: []}]`.
-
-- [ ] **Step 1: Write the failing test**
-
-`tests/test_swagger_docs.py`:
-```python
-import server
-
-
-def test_apispec_declares_sync_tag_and_bearer_auth():
-    client = server.app.test_client()
-    resp = client.get("/apispec_1.json")
-    assert resp.status_code == 200
-    spec = resp.get_json()
-    tag_names = [t["name"] for t in spec.get("tags", [])]
-    assert "Sync" in tag_names
-    assert "bearerAuth" in spec.get("securityDefinitions", {})
-    assert spec["securityDefinitions"]["bearerAuth"]["type"] == "apiKey"
-    assert spec["securityDefinitions"]["bearerAuth"]["name"] == "Authorization"
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `.venv/bin/python -m pytest tests/test_swagger_docs.py -v`
-Expected: FAIL — `"Sync" in tag_names` is `False` (tag not present yet).
-
-- [ ] **Step 3: Update the Swagger template**
-
-Find:
-```python
-Swagger(app, template={
-    "info": {
-        "title": "Dashboard API",
-        "description": "REST API backing the personal dashboard (checklist, announcements, news, music).",
-        "version": "1.0.0",
-    },
-    "tags": [
-        {"name": "Checklist"},
-        {"name": "Announcements"},
-        {"name": "News"},
-        {"name": "Music"},
-        {"name": "Personal"},
-        {"name": "Sessions"},
-    ],
-})
-```
-
-Replace with:
-```python
-Swagger(app, template={
-    "info": {
-        "title": "Dashboard API",
-        "description": "REST API backing the personal dashboard (checklist, announcements, news, music).",
-        "version": "1.0.0",
-    },
-    "tags": [
-        {"name": "Checklist"},
-        {"name": "Announcements"},
-        {"name": "News"},
-        {"name": "Music"},
-        {"name": "Personal"},
-        {"name": "Sessions"},
-        {"name": "Sync"},
-    ],
-    "securityDefinitions": {
-        "bearerAuth": {
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header",
-            "description": "Pass as 'Bearer <token>'. Required for all /api/sync/* routes.",
-        }
-    },
-})
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `.venv/bin/python -m pytest tests/test_swagger_docs.py -v`
-Expected: 1 passed.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add server.py tests/test_swagger_docs.py
-git commit -m "docs: add Sync tag and bearerAuth securityDefinition to Swagger"
-```
-
----
-
-### Task 4: `GET /api/sync/reports` and `GET /api/sync/reports/<name>`
-
-**Files:**
-- Modify: `server.py` — add `REPORTS_DIR` / `REPORTS_INDEX_PATH` constants near `DATA` (top of file); add a new `# ── Sync ──` section with two routes, placed after the `# ── Session Registry ─` section and before `# ── Static files ─` (i.e., right before `@app.route("/", defaults=...)`).
-- Create: `tests/test_sync_reports.py`
-
-**Interfaces:**
-- Consumes: `server.require_token` (Task 2), `server._read` (existing helper, already used throughout `server.py`).
-- Produces: `server.REPORTS_DIR: Path` (= `BASE / "reports"`), `server.REPORTS_INDEX_PATH: Path` (= `REPORTS_DIR / "reports-index.json"`). Later tasks don't consume these, but tests monkeypatch them for isolation — same pattern later tasks reuse for `DATA`.
-
-- [ ] **Step 1: Write the failing tests**
-
-`tests/test_sync_reports.py`:
+`tests/test_server_smoke.py`:
 ```python
 import json
 
@@ -432,12 +178,416 @@ import server
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(server, "DATA", data_dir)
+    return server.app.test_client()
+
+
+def test_checklist_add_then_list_round_trips(client):
+    resp = client.post("/api/checklist", json={"text": "hello"})
+    assert resp.status_code == 201
+    item_id = resp.get_json()["id"]
+
+    resp = client.get("/api/checklist")
+    assert resp.status_code == 200
+    items = resp.get_json()
+    assert len(items) == 1
+    assert items[0]["id"] == item_id
+    assert items[0]["text"] == "hello"
+
+
+def test_checklist_patch_toggles_checked(client):
+    item_id = client.post("/api/checklist", json={"text": "x"}).get_json()["id"]
+    resp = client.patch(f"/api/checklist/{item_id}", json={"checked": True})
+    assert resp.status_code == 200
+    assert resp.get_json()["checked"] is True
+
+
+def test_checklist_delete_removes_item(client):
+    item_id = client.post("/api/checklist", json={"text": "x"}).get_json()["id"]
+    resp = client.delete(f"/api/checklist/{item_id}")
+    assert resp.status_code == 204
+    assert client.get("/api/checklist").get_json() == []
+```
+
+- [ ] **Step 4: Run tests to verify they fail**
+
+Run: `.venv/bin/python -m pytest tests/ -v`
+Expected: `test_dashboard_data.py` fails with `ModuleNotFoundError: No module named 'dashboard_data'`. `test_server_smoke.py` passes already — it characterizes `server.py`'s existing (unrefactored) checklist behavior, which doesn't change in this task, only the internals backing it do.
+
+- [ ] **Step 5: Create `dashboard_data.py`**
+
+```python
+#!/usr/bin/env python3
+import fcntl
+import json
+import threading
+from pathlib import Path
+
+BASE = Path(__file__).parent.resolve()
+DATA = BASE / "data"
+DATA.mkdir(exist_ok=True)
+REPORTS_DIR = BASE / "reports"
+REPORTS_INDEX_PATH = REPORTS_DIR / "reports-index.json"
+
+_lock = threading.Lock()
+
+
+def _read(path: Path) -> list:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _write(path: Path, data: list) -> None:
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def _list(filename: str, filter_fn=None) -> list:
+    items = _read(DATA / filename)
+    if filter_fn:
+        return [i for i in items if filter_fn(i)]
+    return items
+
+
+class _FileLock:
+    """Cross-process advisory lock via flock on a sibling .lock file.
+
+    threading.Lock only serializes threads within one process. server.py and
+    sync_server.py are separate processes that can both mutate the same
+    JSON files (checklist.json in particular), so writes need an OS-level
+    lock too, or concurrent read-modify-write cycles can lose updates.
+    """
+
+    def __init__(self, path: Path):
+        self._lockfile = path.with_name(path.name + ".lock")
+
+    def __enter__(self):
+        self._fh = open(self._lockfile, "w")
+        fcntl.flock(self._fh, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, *exc_info):
+        fcntl.flock(self._fh, fcntl.LOCK_UN)
+        self._fh.close()
+
+
+def _add(filename: str, item: dict) -> dict:
+    with _lock, _FileLock(DATA / filename):
+        items = _read(DATA / filename)
+        items.append(item)
+        _write(DATA / filename, items)
+    return item
+
+
+def _add_first(filename: str, item: dict) -> dict:
+    with _lock, _FileLock(DATA / filename):
+        items = _read(DATA / filename)
+        items.insert(0, item)
+        _write(DATA / filename, items)
+    return item
+
+
+def _patch(filename: str, item_id: str, mutate_fn):
+    with _lock, _FileLock(DATA / filename):
+        items = _read(DATA / filename)
+        for item in items:
+            if item["id"] == item_id:
+                mutate_fn(item)
+                _write(DATA / filename, items)
+                return item
+    return None
+
+
+def _delete(filename: str, item_id: str) -> bool:
+    with _lock, _FileLock(DATA / filename):
+        items = _read(DATA / filename)
+        new_items = [i for i in items if i["id"] != item_id]
+        if len(new_items) == len(items):
+            return False
+        _write(DATA / filename, new_items)
+        return True
+```
+
+- [ ] **Step 6: Refactor `server.py` to use `dashboard_data`**
+
+Remove these lines from the top of `server.py` (currently lines 1–16, up to `_lock = threading.Lock()`):
+```python
+#!/usr/bin/env python3
+import json
+import threading
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+from flask import Flask, jsonify, request, send_from_directory
+from flasgger import Swagger
+
+BASE = Path(__file__).parent.resolve()
+DATA = BASE / "data"
+DATA.mkdir(exist_ok=True)
+
+app = Flask(__name__, static_folder=None)
+_lock = threading.Lock()
+```
+
+Replace with:
+```python
+#!/usr/bin/env python3
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
+from flask import Flask, jsonify, request, send_from_directory
+from flasgger import Swagger
+
+from dashboard_data import BASE, DATA, _add, _add_first, _delete, _list, _patch, _read, _write
+
+app = Flask(__name__, static_folder=None)
+```
+
+Then remove the six helper function definitions that follow (currently lines 35–88: `_read`, `_write`, `_list`, `_add`, `_add_first`, `_patch`, `_delete`) — they're identical in signature and behavior to the ones now imported from `dashboard_data`, just now lock-protected across processes too. Every call site in the rest of `server.py` (`_list("checklist.json", ...)`, `_add("checklist.json", item)`, etc.) is unchanged — same names, same arguments.
+
+- [ ] **Step 7: Add `.gitignore` entry for lock files**
+
+In `.gitignore`, add a line after `data/*.json`:
+```
+data/*.lock
+```
+
+- [ ] **Step 8: Run tests to verify they pass**
+
+Run: `.venv/bin/python -m pytest tests/ -v`
+Expected: all tests pass (`test_dashboard_data.py`: 10 passed; `test_server_smoke.py`: 3 passed).
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add dashboard_data.py server.py .gitignore tests/__init__.py tests/conftest.py tests/test_dashboard_data.py tests/test_server_smoke.py
+git commit -m "refactor: extract dashboard_data module with cross-process file locking"
+```
+
+---
+
+### Task 2: `sync_server.py` skeleton — boot-time token, global auth gate, Swagger
+
+**Files:**
+- Create: `sync_server.py`
+- Create: `tests/test_sync_server_auth.py`
+- Create: `tests/test_sync_server_boot.py`
+
+**Interfaces:**
+- Consumes: `dashboard_data.BASE`, `dashboard_data.DATA`, `dashboard_data.REPORTS_DIR`, `dashboard_data.REPORTS_INDEX_PATH`, `dashboard_data._read/_write/_add/_add_first/_patch/_delete` (Task 1).
+- Produces: `sync_server.app` (Flask instance), `sync_server.SYNC_TOKEN: str` (resolved at import time; import raises `SystemExit` if no token is configured), `sync_server._config_sync_token() -> str | None`. Later tasks (3–5) register routes on `sync_server.app`; tests for those tasks reuse the same auth-gate behavior established here.
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/test_sync_server_auth.py`:
+```python
+import sync_server
+
+
+def test_missing_header_returns_401(monkeypatch):
+    monkeypatch.setattr(sync_server, "SYNC_TOKEN", "s3cr3t")
+    client = sync_server.app.test_client()
+    resp = client.get("/api/sync/__probe")
+    assert resp.status_code == 401
+    assert resp.get_json() == {"error": "unauthorized"}
+
+
+def test_wrong_token_returns_401(monkeypatch):
+    monkeypatch.setattr(sync_server, "SYNC_TOKEN", "s3cr3t")
+    client = sync_server.app.test_client()
+    resp = client.get("/api/sync/__probe", headers={"Authorization": "Bearer nope"})
+    assert resp.status_code == 401
+
+
+def test_no_cors_headers_ever(monkeypatch):
+    monkeypatch.setattr(sync_server, "SYNC_TOKEN", "s3cr3t")
+    client = sync_server.app.test_client()
+    resp = client.get("/api/sync/__probe", headers={"Authorization": "Bearer s3cr3t"})
+    assert "Access-Control-Allow-Origin" not in resp.headers
+
+
+def test_apidocs_accessible_without_token():
+    client = sync_server.app.test_client()
+    resp = client.get("/apidocs/")
+    assert resp.status_code == 200
+
+
+def test_apispec_accessible_without_token():
+    client = sync_server.app.test_client()
+    resp = client.get("/apispec_1.json")
+    assert resp.status_code == 200
+```
+
+Note: `/api/sync/__probe` doesn't exist as a route yet in this task — that's fine, since the auth gate runs in `before_request`, which fires before Flask's URL routing decides 404 vs 200. A 401 here proves the gate itself works, independent of any specific route existing. Task 3 onward re-verifies auth on the real routes too.
+
+`tests/test_sync_server_boot.py`:
+```python
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_boot_fails_fast_without_any_token(tmp_path):
+    # BASE in dashboard_data.py is Path(__file__).parent.resolve() — it follows
+    # the *file's* location, not the process cwd. So to deterministically test
+    # "no dashboard-config.json fallback either" without depending on whatever
+    # the developer's real (gitignored) dashboard-config.json happens to
+    # contain, copy both modules into an empty tmp_path and import from there.
+    shutil.copy(REPO_ROOT / "dashboard_data.py", tmp_path / "dashboard_data.py")
+    shutil.copy(REPO_ROOT / "sync_server.py", tmp_path / "sync_server.py")
+    result = subprocess.run(
+        [sys.executable, "-c", "import sync_server"],
+        cwd=tmp_path,
+        env={"PATH": "/usr/bin:/bin"},
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0
+    assert "DASHBOARD_SYNC_TOKEN" in result.stderr
+
+
+def test_boot_succeeds_with_env_token():
+    result = subprocess.run(
+        [sys.executable, "-c", "import sync_server"],
+        cwd=REPO_ROOT,
+        env={"PATH": "/usr/bin:/bin", "DASHBOARD_SYNC_TOKEN": "abc123"},
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, result.stderr
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_server_auth.py tests/test_sync_server_boot.py -v`
+Expected: `ModuleNotFoundError: No module named 'sync_server'`.
+
+- [ ] **Step 3: Create `sync_server.py`**
+
+```python
+#!/usr/bin/env python3
+import hmac
+import json
+import os
+
+from flask import Flask, jsonify, request
+from flasgger import Swagger
+
+from dashboard_data import BASE
+
+app = Flask(__name__, static_folder=None)
+
+Swagger(app, template={
+    "info": {
+        "title": "Dashboard Sync API",
+        "description": "Bearer-token-authenticated API for aggregating multiple Dashboard instances (sessions, reports, checklist).",
+        "version": "1.0.0",
+    },
+    "tags": [{"name": "Sync"}],
+    "securityDefinitions": {
+        "bearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "Pass as 'Bearer <token>'.",
+        }
+    },
+})
+
+
+def _config_sync_token() -> str | None:
+    try:
+        config = json.loads((BASE / "dashboard-config.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    return config.get("sync", {}).get("token")
+
+
+SYNC_TOKEN = os.environ.get("DASHBOARD_SYNC_TOKEN") or _config_sync_token()
+if not SYNC_TOKEN:
+    raise SystemExit(
+        "DASHBOARD_SYNC_TOKEN not set. sync_server.py only serves /api/sync/*, "
+        "so a token is required to start it at all. Set the DASHBOARD_SYNC_TOKEN "
+        "env var, or dashboard-config.json's 'sync.token' key."
+    )
+
+_PUBLIC_PREFIXES = ("/apidocs", "/apispec", "/flasgger_static")
+
+
+@app.before_request
+def _check_token():
+    if request.path.startswith(_PUBLIC_PREFIXES):
+        return
+    auth = request.headers.get("Authorization", "")
+    prefix = "Bearer "
+    supplied = auth[len(prefix):] if auth.startswith(prefix) else None
+    if not supplied or not hmac.compare_digest(supplied, SYNC_TOKEN):
+        app.logger.warning("sync auth failed from %s on %s", request.remote_addr, request.path)
+        return jsonify({"error": "unauthorized"}), 401
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8766, debug=False)
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_server_auth.py tests/test_sync_server_boot.py -v`
+Expected: 7 passed.
+
+- [ ] **Step 5: Run the full suite so far**
+
+Run: `.venv/bin/python -m pytest tests/ -v`
+Expected: all 20 tests across Tasks 1–2 pass.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add sync_server.py tests/test_sync_server_auth.py tests/test_sync_server_boot.py
+git commit -m "feat: add sync_server.py skeleton with boot-time token and global auth gate"
+```
+
+---
+
+### Task 3: `GET /api/sync/reports` and `GET /api/sync/reports/<name>`
+
+**Files:**
+- Modify: `sync_server.py` — add imports and two routes after the `_check_token` function.
+- Create: `tests/test_sync_reports.py`
+
+**Interfaces:**
+- Consumes: `dashboard_data.REPORTS_DIR`, `dashboard_data.REPORTS_INDEX_PATH`, `dashboard_data._read` (Task 1); `sync_server.SYNC_TOKEN` / auth gate (Task 2).
+- Produces: `sync_server._find_report(name: str) -> dict | None`.
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/test_sync_reports.py`:
+```python
+import json
+
+import pytest
+
+import sync_server
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
     reports_dir = tmp_path / "reports"
     reports_dir.mkdir()
-    monkeypatch.setattr(server, "REPORTS_DIR", reports_dir)
-    monkeypatch.setattr(server, "REPORTS_INDEX_PATH", reports_dir / "reports-index.json")
-    monkeypatch.setattr(server, "SYNC_TOKEN", "test-token")
-    return server.app.test_client()
+    monkeypatch.setattr(sync_server, "REPORTS_DIR", reports_dir)
+    monkeypatch.setattr(sync_server, "REPORTS_INDEX_PATH", reports_dir / "reports-index.json")
+    monkeypatch.setattr(sync_server, "SYNC_TOKEN", "test-token")
+    return sync_server.app.test_client()
 
 
 AUTH = {"Authorization": "Bearer test-token"}
@@ -445,7 +595,7 @@ AUTH = {"Authorization": "Bearer test-token"}
 
 def test_list_reports_returns_index_contents(client):
     index = [{"name": "foo", "file": "reports/foo.html", "title": "Foo", "mtime": "2026-01-01T00:00:00"}]
-    server.REPORTS_INDEX_PATH.write_text(json.dumps(index), encoding="utf-8")
+    sync_server.REPORTS_INDEX_PATH.write_text(json.dumps(index), encoding="utf-8")
     resp = client.get("/api/sync/reports", headers=AUTH)
     assert resp.status_code == 200
     assert resp.get_json() == index
@@ -464,15 +614,15 @@ def test_list_reports_requires_auth(client):
 
 def test_get_report_serves_html_by_name(client):
     index = [{"name": "foo", "file": "reports/foo.html", "title": "Foo", "mtime": "x"}]
-    server.REPORTS_INDEX_PATH.write_text(json.dumps(index), encoding="utf-8")
-    server.REPORTS_DIR.joinpath("foo.html").write_text("<html>hi</html>", encoding="utf-8")
+    sync_server.REPORTS_INDEX_PATH.write_text(json.dumps(index), encoding="utf-8")
+    sync_server.REPORTS_DIR.joinpath("foo.html").write_text("<html>hi</html>", encoding="utf-8")
     resp = client.get("/api/sync/reports/foo", headers=AUTH)
     assert resp.status_code == 200
     assert b"hi" in resp.data
 
 
 def test_get_report_unknown_name_returns_404(client):
-    server.REPORTS_INDEX_PATH.write_text("[]", encoding="utf-8")
+    sync_server.REPORTS_INDEX_PATH.write_text("[]", encoding="utf-8")
     resp = client.get("/api/sync/reports/does-not-exist", headers=AUTH)
     assert resp.status_code == 404
     assert resp.get_json() == {"error": "not found"}
@@ -480,16 +630,14 @@ def test_get_report_unknown_name_returns_404(client):
 
 def test_get_report_path_traversal_via_encoded_slash_is_rejected(client):
     index = [{"name": "foo", "file": "reports/foo.html", "title": "Foo", "mtime": "x"}]
-    server.REPORTS_INDEX_PATH.write_text(json.dumps(index), encoding="utf-8")
+    sync_server.REPORTS_INDEX_PATH.write_text(json.dumps(index), encoding="utf-8")
     resp = client.get("/api/sync/reports/..%2f..%2fetc%2fpasswd", headers=AUTH)
     assert resp.status_code == 404
 
 
-def test_get_report_name_not_matching_any_index_entry_cannot_read_arbitrary_file(client):
-    # A file exists on disk but isn't listed in the index — must not be servable.
-    index = []
-    server.REPORTS_INDEX_PATH.write_text(json.dumps(index), encoding="utf-8")
-    server.REPORTS_DIR.joinpath("secret.html").write_text("nope", encoding="utf-8")
+def test_get_report_name_not_in_index_cannot_read_arbitrary_file(client):
+    sync_server.REPORTS_INDEX_PATH.write_text("[]", encoding="utf-8")
+    sync_server.REPORTS_DIR.joinpath("secret.html").write_text("nope", encoding="utf-8")
     resp = client.get("/api/sync/reports/secret", headers=AUTH)
     assert resp.status_code == 404
 ```
@@ -497,24 +645,22 @@ def test_get_report_name_not_matching_any_index_entry_cannot_read_arbitrary_file
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `.venv/bin/python -m pytest tests/test_sync_reports.py -v`
-Expected: FAIL — `404 NOT FOUND` from Flask routing (no `/api/sync/reports` route registered yet), since the route itself doesn't exist.
+Expected: FAIL — `404 NOT FOUND` from Flask routing (no `/api/sync/reports` route registered yet).
 
 - [ ] **Step 3: Implement the routes**
 
-Add constants right after the existing `DATA = BASE / "data"` / `DATA.mkdir(exist_ok=True)` lines (top of file, near line 12–13):
-
+Add to the imports at the top of `sync_server.py`:
 ```python
-DATA = BASE / "data"
-DATA.mkdir(exist_ok=True)
-REPORTS_DIR = BASE / "reports"
-REPORTS_INDEX_PATH = REPORTS_DIR / "reports-index.json"
+from pathlib import Path
+
+from flask import send_from_directory
+
+from dashboard_data import BASE, REPORTS_DIR, REPORTS_INDEX_PATH, _read
 ```
+(replacing the earlier `from dashboard_data import BASE` line from Task 2 with this fuller one.)
 
-Add the new section in `server.py`, immediately before `# ── Static files ─` / `@app.route("/", defaults={"path": "dashboard-work.html"})`:
-
+Add after the `_check_token` function:
 ```python
-# ── Sync (read-only, bearer-token auth, for aggregating multiple instances) ──
-
 def _find_report(name: str) -> dict | None:
     for entry in _read(REPORTS_INDEX_PATH):
         if entry.get("name") == name:
@@ -523,7 +669,6 @@ def _find_report(name: str) -> dict | None:
 
 
 @app.route("/api/sync/reports", methods=["GET"])
-@require_token
 def sync_list_reports():
     """List all reports available for sync.
     ---
@@ -535,14 +680,11 @@ def sync_list_reports():
         description: Reports index (same shape as reports/reports-index.json)
       401:
         description: Missing or invalid bearer token
-      503:
-        description: Sync not enabled on this instance
     """
     return jsonify(_read(REPORTS_INDEX_PATH))
 
 
 @app.route("/api/sync/reports/<name>", methods=["GET"])
-@require_token
 def sync_get_report(name):
     """Fetch a single report's HTML by its index name.
     ---
@@ -562,8 +704,6 @@ def sync_get_report(name):
         description: Missing or invalid bearer token
       404:
         description: No report with that name in the index
-      503:
-        description: Sync not enabled on this instance
     """
     entry = _find_report(name)
     if entry is None:
@@ -577,55 +717,50 @@ def sync_get_report(name):
 Run: `.venv/bin/python -m pytest tests/test_sync_reports.py -v`
 Expected: 7 passed.
 
-- [ ] **Step 5: Run the full suite**
-
-Run: `.venv/bin/python -m pytest tests/ -v`
-Expected: all prior tests plus these 7 pass, none broken.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add server.py tests/test_sync_reports.py
+git add sync_server.py tests/test_sync_reports.py
 git commit -m "feat: add GET /api/sync/reports and /api/sync/reports/<name>"
 ```
 
 ---
 
-### Task 5: `GET /api/sync/sessions` and `GET /api/sync/checklist`
+### Task 4: `GET /api/sync/sessions`
 
 **Files:**
-- Modify: `server.py` — add two more routes in the same `# ── Sync ──` section from Task 4, after `sync_get_report`.
-- Create: `tests/test_sync_sessions_checklist.py`
+- Modify: `sync_server.py` — add one route, add `DATA` to the `dashboard_data` import.
+- Create: `tests/test_sync_sessions.py`
 
 **Interfaces:**
-- Consumes: `server.require_token` (Task 2), `server._read` (existing), `server.DATA` (existing constant).
-- Produces: `GET /api/sync/sessions` → JSON array (same shape as `data/sessions-registry.json`). `GET /api/sync/checklist` → `{"checklist": [...], "personal_checklist": [...]}`.
+- Consumes: `dashboard_data.DATA`, `dashboard_data._read` (Task 1).
+- Produces: `GET /api/sync/sessions` → JSON array (same shape as `server.py`'s `GET /api/sessions`, read-only — sessions are only ever written locally by `server.py`).
 
 - [ ] **Step 1: Write the failing tests**
 
-`tests/test_sync_sessions_checklist.py`:
+`tests/test_sync_sessions.py`:
 ```python
 import json
 
 import pytest
 
-import server
+import sync_server
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-    monkeypatch.setattr(server, "DATA", data_dir)
-    monkeypatch.setattr(server, "SYNC_TOKEN", "test-token")
-    return server.app.test_client()
+    monkeypatch.setattr(sync_server, "DATA", data_dir)
+    monkeypatch.setattr(sync_server, "SYNC_TOKEN", "test-token")
+    return sync_server.app.test_client()
 
 
 AUTH = {"Authorization": "Bearer test-token"}
 
 
 def test_sync_sessions_returns_registry_contents(client):
-    server.DATA.joinpath("sessions-registry.json").write_text(
+    (sync_server.DATA / "sessions-registry.json").write_text(
         json.dumps([{"id": "abc123", "provider": "edgar", "name": "test", "status": "active"}]),
         encoding="utf-8",
     )
@@ -643,67 +778,223 @@ def test_sync_sessions_empty_when_registry_missing(client):
 def test_sync_sessions_requires_auth(client):
     resp = client.get("/api/sync/sessions")
     assert resp.status_code == 401
-
-
-def test_sync_checklist_combines_both_lists(client):
-    server.DATA.joinpath("checklist.json").write_text(
-        json.dumps([{"id": "1", "text": "a", "checked": False}]), encoding="utf-8"
-    )
-    server.DATA.joinpath("personal-checklist.json").write_text(
-        json.dumps([{"id": "2", "text": "b", "checked": True}]), encoding="utf-8"
-    )
-    resp = client.get("/api/sync/checklist", headers=AUTH)
-    assert resp.status_code == 200
-    body = resp.get_json()
-    assert body == {
-        "checklist": [{"id": "1", "text": "a", "checked": False}],
-        "personal_checklist": [{"id": "2", "text": "b", "checked": True}],
-    }
-
-
-def test_sync_checklist_empty_lists_when_files_missing(client):
-    resp = client.get("/api/sync/checklist", headers=AUTH)
-    assert resp.status_code == 200
-    assert resp.get_json() == {"checklist": [], "personal_checklist": []}
-
-
-def test_sync_checklist_requires_auth(client):
-    resp = client.get("/api/sync/checklist")
-    assert resp.status_code == 401
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `.venv/bin/python -m pytest tests/test_sync_sessions_checklist.py -v`
-Expected: FAIL — `404 NOT FOUND` (routes not registered yet).
+Run: `.venv/bin/python -m pytest tests/test_sync_sessions.py -v`
+Expected: FAIL — `404 NOT FOUND` (route not registered yet).
 
-- [ ] **Step 3: Implement the routes**
+- [ ] **Step 3: Implement the route**
 
-Append to the `# ── Sync ──` section in `server.py`, after `sync_get_report`:
+Update the `dashboard_data` import line in `sync_server.py`:
+```python
+from dashboard_data import BASE, DATA, REPORTS_DIR, REPORTS_INDEX_PATH, _read
+```
 
+Add after `sync_get_report`:
 ```python
 @app.route("/api/sync/sessions", methods=["GET"])
-@require_token
 def sync_sessions():
-    """List registered sessions for sync.
+    """List registered sessions for sync (read-only — written locally by server.py).
     ---
     tags: [Sync]
     security:
       - bearerAuth: []
     responses:
       200:
-        description: Same shape as GET /api/sessions
+        description: Same shape as server.py's GET /api/sessions
       401:
         description: Missing or invalid bearer token
-      503:
-        description: Sync not enabled on this instance
     """
     return jsonify(_read(DATA / "sessions-registry.json"))
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_sessions.py -v`
+Expected: 3 passed.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add sync_server.py tests/test_sync_sessions.py
+git commit -m "feat: add GET /api/sync/sessions"
+```
+
+---
+
+### Task 5: Checklist read/write over sync — `GET`/`POST /api/sync/checklist`, `PATCH`/`DELETE /api/sync/checklist/<item_id>`
+
+This is the endpoint the aggregator actually needs writes on: creating/checking/removing tasks on a machine you don't have direct access to. Both `checklist.json` (work) and `personal-checklist.json` (personal) are reachable via a `list` selector — `"checklist"` (default) or `"personal-checklist"` — in the POST body / as a query param on PATCH/DELETE.
+
+**Files:**
+- Modify: `sync_server.py` — add imports (`uuid`, `datetime`/`timezone`, `_add`/`_patch`/`_delete` from `dashboard_data`), a `_checklist_filename` helper, and four routes.
+- Create: `tests/test_sync_checklist.py`
+
+**Interfaces:**
+- Consumes: `dashboard_data._read`/`_add`/`_patch`/`_delete` (Task 1, now cross-process-lock-protected).
+- Produces: `sync_server._checklist_filename(list_name: str) -> str | None` (maps `"checklist"` → `"checklist.json"`, `"personal-checklist"` → `"personal-checklist.json"`, anything else → `None`).
+
+- [ ] **Step 1: Write the failing tests**
+
+`tests/test_sync_checklist.py`:
+```python
+import json
+
+import pytest
+
+import sync_server
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(sync_server, "DATA", data_dir)
+    monkeypatch.setattr(sync_server, "SYNC_TOKEN", "test-token")
+    return sync_server.app.test_client()
+
+
+AUTH = {"Authorization": "Bearer test-token"}
+
+
+def test_get_checklist_combines_both_lists(client):
+    (sync_server.DATA / "checklist.json").write_text(
+        json.dumps([{"id": "1", "text": "a", "checked": False}]), encoding="utf-8"
+    )
+    (sync_server.DATA / "personal-checklist.json").write_text(
+        json.dumps([{"id": "2", "text": "b", "checked": True}]), encoding="utf-8"
+    )
+    resp = client.get("/api/sync/checklist", headers=AUTH)
+    assert resp.status_code == 200
+    assert resp.get_json() == {
+        "checklist": [{"id": "1", "text": "a", "checked": False}],
+        "personal_checklist": [{"id": "2", "text": "b", "checked": True}],
+    }
+
+
+def test_get_checklist_empty_lists_when_files_missing(client):
+    resp = client.get("/api/sync/checklist", headers=AUTH)
+    assert resp.get_json() == {"checklist": [], "personal_checklist": []}
+
+
+def test_get_checklist_requires_auth(client):
+    resp = client.get("/api/sync/checklist")
+    assert resp.status_code == 401
+
+
+def test_post_checklist_defaults_to_work_list(client):
+    resp = client.post("/api/sync/checklist", json={"text": "new task"}, headers=AUTH)
+    assert resp.status_code == 201
+    body = resp.get_json()
+    assert body["text"] == "new task"
+    assert body["checked"] is False
+    on_disk = json.loads((sync_server.DATA / "checklist.json").read_text(encoding="utf-8"))
+    assert on_disk == [body]
+    assert not (sync_server.DATA / "personal-checklist.json").exists()
+
+
+def test_post_checklist_targets_personal_list(client):
+    resp = client.post(
+        "/api/sync/checklist", json={"text": "personal task", "list": "personal-checklist"}, headers=AUTH
+    )
+    assert resp.status_code == 201
+    on_disk = json.loads((sync_server.DATA / "personal-checklist.json").read_text(encoding="utf-8"))
+    assert on_disk[0]["text"] == "personal task"
+
+
+def test_post_checklist_requires_text(client):
+    resp = client.post("/api/sync/checklist", json={}, headers=AUTH)
+    assert resp.status_code == 400
+
+
+def test_post_checklist_rejects_unknown_list(client):
+    resp = client.post("/api/sync/checklist", json={"text": "x", "list": "not-a-real-list"}, headers=AUTH)
+    assert resp.status_code == 400
+
+
+def test_post_checklist_requires_auth(client):
+    resp = client.post("/api/sync/checklist", json={"text": "x"})
+    assert resp.status_code == 401
+
+
+def test_patch_checklist_toggles_checked_on_work_list_by_default(client):
+    item_id = client.post("/api/sync/checklist", json={"text": "x"}, headers=AUTH).get_json()["id"]
+    resp = client.patch(f"/api/sync/checklist/{item_id}", json={"checked": True}, headers=AUTH)
+    assert resp.status_code == 200
+    assert resp.get_json()["checked"] is True
+
+
+def test_patch_checklist_targets_personal_list_via_query_param(client):
+    item_id = client.post(
+        "/api/sync/checklist", json={"text": "x", "list": "personal-checklist"}, headers=AUTH
+    ).get_json()["id"]
+    resp = client.patch(
+        f"/api/sync/checklist/{item_id}?list=personal-checklist", json={"checked": True}, headers=AUTH
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["checked"] is True
+
+
+def test_patch_checklist_missing_id_returns_404(client):
+    resp = client.patch("/api/sync/checklist/does-not-exist", json={"checked": True}, headers=AUTH)
+    assert resp.status_code == 404
+
+
+def test_patch_checklist_rejects_unknown_list(client):
+    resp = client.patch("/api/sync/checklist/x?list=nope", json={"checked": True}, headers=AUTH)
+    assert resp.status_code == 400
+
+
+def test_delete_checklist_removes_item(client):
+    item_id = client.post("/api/sync/checklist", json={"text": "x"}, headers=AUTH).get_json()["id"]
+    resp = client.delete(f"/api/sync/checklist/{item_id}", headers=AUTH)
+    assert resp.status_code == 204
+    assert client.get("/api/sync/checklist", headers=AUTH).get_json()["checklist"] == []
+
+
+def test_delete_checklist_missing_id_returns_404(client):
+    resp = client.delete("/api/sync/checklist/does-not-exist", headers=AUTH)
+    assert resp.status_code == 404
+
+
+def test_delete_checklist_requires_auth(client):
+    resp = client.delete("/api/sync/checklist/whatever")
+    assert resp.status_code == 401
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_checklist.py -v`
+Expected: FAIL — `404 NOT FOUND` (routes not registered yet).
+
+- [ ] **Step 3: Implement the routes**
+
+Add to the imports at the top of `sync_server.py`:
+```python
+import uuid
+from datetime import datetime, timezone
+```
+and update the `dashboard_data` import:
+```python
+from dashboard_data import BASE, DATA, REPORTS_DIR, REPORTS_INDEX_PATH, _add, _delete, _patch, _read
+```
+
+Add after `sync_sessions`:
+```python
+CHECKLIST_FILES = {
+    "checklist": "checklist.json",
+    "personal-checklist": "personal-checklist.json",
+}
+
+
+def _checklist_filename(list_name: str) -> str | None:
+    return CHECKLIST_FILES.get(list_name)
 
 
 @app.route("/api/sync/checklist", methods=["GET"])
-@require_token
-def sync_checklist():
+def sync_get_checklist():
     """Get work and personal checklists for sync.
     ---
     tags: [Sync]
@@ -714,88 +1005,285 @@ def sync_checklist():
         description: Object with 'checklist' and 'personal_checklist' arrays
       401:
         description: Missing or invalid bearer token
-      503:
-        description: Sync not enabled on this instance
     """
     return jsonify({
         "checklist": _read(DATA / "checklist.json"),
         "personal_checklist": _read(DATA / "personal-checklist.json"),
     })
+
+
+@app.route("/api/sync/checklist", methods=["POST"])
+def sync_add_checklist_item():
+    """Create a checklist item on this instance from a remote aggregator.
+    ---
+    tags: [Sync]
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [text]
+          properties:
+            text:
+              type: string
+            list:
+              type: string
+              description: "'checklist' (default, work) or 'personal-checklist'"
+    responses:
+      201:
+        description: Created item
+      400:
+        description: text required, or list is not 'checklist'/'personal-checklist'
+      401:
+        description: Missing or invalid bearer token
+    """
+    body = request.get_json(force=True) or {}
+    text = str(body.get("text", "")).strip()
+    if not text:
+        return jsonify({"error": "text required"}), 400
+    filename = _checklist_filename(str(body.get("list", "checklist")))
+    if filename is None:
+        return jsonify({"error": "list must be 'checklist' or 'personal-checklist'"}), 400
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "text": text,
+        "checked": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return jsonify(_add(filename, item)), 201
+
+
+@app.route("/api/sync/checklist/<item_id>", methods=["PATCH"])
+def sync_patch_checklist_item(item_id):
+    """Toggle or set checked state of a checklist item from a remote aggregator.
+    ---
+    tags: [Sync]
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+      - in: query
+        name: list
+        type: string
+        required: false
+        description: "'checklist' (default, work) or 'personal-checklist'"
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            checked:
+              type: boolean
+    responses:
+      200:
+        description: Updated item
+      400:
+        description: list is not 'checklist'/'personal-checklist'
+      401:
+        description: Missing or invalid bearer token
+      404:
+        description: Not found
+    """
+    filename = _checklist_filename(request.args.get("list", "checklist"))
+    if filename is None:
+        return jsonify({"error": "list must be 'checklist' or 'personal-checklist'"}), 400
+    body = request.get_json(force=True) or {}
+
+    def mutate(item):
+        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
+
+    item = _patch(filename, item_id, mutate)
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
+
+
+@app.route("/api/sync/checklist/<item_id>", methods=["DELETE"])
+def sync_delete_checklist_item(item_id):
+    """Delete a checklist item from a remote aggregator.
+    ---
+    tags: [Sync]
+    security:
+      - bearerAuth: []
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+      - in: query
+        name: list
+        type: string
+        required: false
+        description: "'checklist' (default, work) or 'personal-checklist'"
+    responses:
+      204:
+        description: Deleted
+      400:
+        description: list is not 'checklist'/'personal-checklist'
+      401:
+        description: Missing or invalid bearer token
+      404:
+        description: Not found
+    """
+    filename = _checklist_filename(request.args.get("list", "checklist"))
+    if filename is None:
+        return jsonify({"error": "list must be 'checklist' or 'personal-checklist'"}), 400
+    if not _delete(filename, item_id):
+        return jsonify({"error": "not found"}), 404
+    return "", 204
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `.venv/bin/python -m pytest tests/test_sync_sessions_checklist.py -v`
-Expected: 6 passed.
+Run: `.venv/bin/python -m pytest tests/test_sync_checklist.py -v`
+Expected: 15 passed.
 
 - [ ] **Step 5: Run the full suite**
 
 Run: `.venv/bin/python -m pytest tests/ -v`
-Expected: all tests across all files pass (30 total across Tasks 1–5).
+Expected: all tests across Tasks 1–5 pass (45 total).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add server.py tests/test_sync_sessions_checklist.py
-git commit -m "feat: add GET /api/sync/sessions and /api/sync/checklist"
+git add sync_server.py tests/test_sync_checklist.py
+git commit -m "feat: add checklist read/write over sync (GET/POST/PATCH/DELETE)"
 ```
 
 ---
 
-### Task 6: Manual verification against a live server
+### Task 6: Deployment scripts + manual end-to-end verification
 
-This task has no automated test — it's a smoke check that the whole feature works end-to-end through the real Flask dev server, not just the test client, and that `/apidocs` renders correctly.
+**Files:**
+- Create: `serve-sync.sh` (mirrors `serve.sh`)
+- Create: `dashboard-sync.service` (mirrors `dashboard.service`)
+- Modify: `install.sh` — install the second systemd unit alongside the existing one.
 
-**Files:** none (verification only).
+**Interfaces:**
+- Consumes: nothing new — this is packaging around the already-complete `sync_server.py`.
 
-- [ ] **Step 1: Start the server with sync enabled**
+- [ ] **Step 1: Create `serve-sync.sh`**
 
 ```bash
-DASHBOARD_SYNC_ENABLED=true DASHBOARD_SYNC_TOKEN=dev-secret .venv/bin/python server.py
+#!/bin/bash
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+echo "Dashboard Sync API a correr em http://localhost:8766"
+"$SCRIPT_DIR/.venv/bin/python" "$SCRIPT_DIR/sync_server.py"
 ```
-Expected: starts cleanly on port 8765, no `SystemExit`.
 
-- [ ] **Step 2: Confirm unauthenticated sync request is rejected**
+Run: `chmod +x serve-sync.sh`
+
+- [ ] **Step 2: Create `dashboard-sync.service`**
+
+```ini
+[Unit]
+Description=Dashboard Sync API (bearer-token-authenticated, for exposure via tunnel)
+
+[Service]
+WorkingDirectory={{DASHBOARD_DIR}}
+ExecStart={{DASHBOARD_DIR}}/.venv/bin/python {{DASHBOARD_DIR}}/sync_server.py
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+- [ ] **Step 3: Update `install.sh` to install the second unit**
+
+Find, in `install.sh`:
+```bash
+# 6. Install systemd user service
+SERVICE_TEMPLATE="$DASHBOARD_DIR/dashboard.service"
+SERVICE_DEST="$HOME/.config/systemd/user/dashboard.service"
+if [ -f "$SERVICE_TEMPLATE" ]; then
+  mkdir -p "$HOME/.config/systemd/user"
+  sed "s|{{DASHBOARD_DIR}}|$DASHBOARD_DIR|g" "$SERVICE_TEMPLATE" > "$SERVICE_DEST"
+  systemctl --user daemon-reload
+  echo "✓ Installed $SERVICE_DEST and reloaded daemon"
+else
+  echo "  dashboard.service template not found, skipping"
+fi
+```
+
+Replace with:
+```bash
+# 6. Install systemd user services (dashboard + sync)
+mkdir -p "$HOME/.config/systemd/user"
+for SERVICE_NAME in dashboard dashboard-sync; do
+  SERVICE_TEMPLATE="$DASHBOARD_DIR/$SERVICE_NAME.service"
+  SERVICE_DEST="$HOME/.config/systemd/user/$SERVICE_NAME.service"
+  if [ -f "$SERVICE_TEMPLATE" ]; then
+    sed "s|{{DASHBOARD_DIR}}|$DASHBOARD_DIR|g" "$SERVICE_TEMPLATE" > "$SERVICE_DEST"
+    echo "✓ Installed $SERVICE_DEST"
+  else
+    echo "  $SERVICE_NAME.service template not found, skipping"
+  fi
+done
+systemctl --user daemon-reload
+echo "✓ Reloaded systemd user daemon"
+```
+
+`dashboard-sync.service` is installed but not started automatically, same as `dashboard.service` today (the README already documents `systemctl --user start dashboard` as a manual step) — starting it without `DASHBOARD_SYNC_TOKEN` configured just crash-loops harmlessly (`Restart=on-failure`) rather than exposing anything, since `sync_server.py` refuses to boot without a token.
+
+- [ ] **Step 4: Start both servers locally and verify they coexist**
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8765/api/sync/sessions
+DASHBOARD_SYNC_TOKEN=dev-secret .venv/bin/python sync_server.py &
+.venv/bin/python server.py &
+sleep 1
+```
+
+- [ ] **Step 5: Confirm the sync server rejects unauthenticated requests**
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8766/api/sync/sessions
 ```
 Expected: `401`
 
-- [ ] **Step 3: Confirm authenticated sync request succeeds**
+- [ ] **Step 6: Confirm the sync server serves authenticated requests**
 
 ```bash
-curl -s -H "Authorization: Bearer dev-secret" http://localhost:8765/api/sync/checklist
+curl -s -H "Authorization: Bearer dev-secret" http://localhost:8766/api/sync/checklist
 ```
-Expected: `{"checklist": [...], "personal_checklist": [...]}` (real content from your local `data/` dir).
+Expected: `{"checklist": [...], "personal_checklist": [...]}` — real content from your local `data/` dir.
 
-- [ ] **Step 4: Confirm existing local routes are unaffected**
+- [ ] **Step 7: Confirm a remote-created task lands in the local dashboard's checklist**
+
+```bash
+curl -s -X POST -H "Authorization: Bearer dev-secret" -H "Content-Type: application/json" \
+  -d '{"text": "created via sync"}' http://localhost:8766/api/sync/checklist
+curl -s http://localhost:8765/api/checklist | grep -o "created via sync"
+```
+Expected: second command prints `created via sync` — proving the write went through the shared `data/checklist.json` and the local (unauthenticated, port 8765) server sees it immediately.
+
+- [ ] **Step 8: Confirm the local dashboard is completely unaffected**
 
 ```bash
 curl -s -i http://localhost:8765/api/checklist | grep -i "access-control-allow-origin"
 ```
-Expected: header present (`*`), proving CORS wasn't broken on the non-sync namespace.
+Expected: header present (`*`) — proves `server.py`'s CORS/behavior wasn't touched by any of this.
 
-- [ ] **Step 5: Confirm Swagger UI shows the Sync tag**
+- [ ] **Step 9: Confirm Swagger UI on the sync server**
 
-Open `http://localhost:8765/apidocs` in a browser (or `curl -s http://localhost:8765/apispec_1.json | grep -o '"Sync"'`) and confirm the `Sync` tag and its four endpoints are listed with a lock icon (bearer auth).
+Open `http://localhost:8766/apidocs` in a browser (or `curl -s http://localhost:8766/apispec_1.json | grep -o '"Sync"'`) — confirm the `Sync` tag lists all six endpoints with a lock icon (bearer auth), and that the docs page itself loaded without needing a token.
 
-- [ ] **Step 6: Confirm the boot-time fail-fast works**
+- [ ] **Step 10: Stop both servers**
 
 ```bash
-DASHBOARD_SYNC_ENABLED=true .venv/bin/python server.py
+kill %1 %2
 ```
-Expected: process exits immediately with the `SystemExit` message about missing token (no `DASHBOARD_SYNC_TOKEN` set in this shell). Stop the Step 1 server first (Ctrl-C) if still running, to avoid a stale process holding port 8765.
-
-- [ ] **Step 7: Stop the dev server**
-
-Ctrl-C the process from Step 1 (or Step 6, whichever is still running).
 
 ---
 
-## Out of scope for this plan (explicitly, per the issue)
+## Out of scope for this plan
 
-- **Cloudflare tunnel config** — mapping only `/api/sync/*` and `/apidocs` externally is an infra/ops change (cloudflared config, not part of this repo) and isn't automatable here.
-- **POST/mirror-back sync routes** — v2 concern per the issue's non-goals; write-conflict resolution across instances is undesigned.
-- **Rate limiting** — the issue accepts "rate-limit or at least log"; this plan implements logging only (`app.logger.warning` on every auth failure) to avoid pulling in a new dependency (e.g. Flask-Limiter) for a single-user tool exposed to a small, known set of aggregating instances.
-- **Per-instance tokens** — the issue's own open question resolves to "one shared secret for all," which is what `DASHBOARD_SYNC_TOKEN` implements.
+- **Cloudflare tunnel config itself** — pointing a tunnel hostname at port 8766 is a one-time dashboard action in Cloudflare's UI (`dash.cloudflare.com`), not a repo change. The point of the two-server split is that this becomes a single "route this hostname to this port" rule instead of path-based rules the free tier can't do.
+- **Sessions/reports writes over sync** — explicitly read-only; they're written by agents executing locally, and there's no remote-management use case for them the way there is for checklist tasks.
+- **Per-instance tokens** — the issue's own open question resolves to "one shared secret for all," which `DASHBOARD_SYNC_TOKEN` implements.
+- **Rate limiting** — logging auth failures (`app.logger.warning`) is the chosen minimum bar; adding a dependency like Flask-Limiter isn't justified for a single-user tool talking to a small, known set of instances.
