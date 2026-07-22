@@ -2,27 +2,28 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a second, standalone Flask process — `sync_server.py`, its own port — that exposes bearer-token-authenticated, read (sessions, reports) and read/write (checklist) endpoints for aggregating multiple Dashboard instances, without touching the existing local-only `server.py` beyond a data-access refactor.
+**Goal:** Ship a second, standalone Flask process — `sync_server.py`, its own port — that exposes bearer-token-authenticated, read (sessions, reports) and read/write (checklist) endpoints, so multiple Dashboard instances can work as a hub-and-spoke: one **main** instance is the checklist's source of truth, and any number of **slave** instances proxy their own checklist reads/writes to it instead of keeping a local copy, while each instance (main or slave) still keeps its own sessions/reports local and exposes them read-only for the others to pull.
 
-**Architecture:** Two separate Flask apps on two ports:
-- `server.py` (unchanged behavior, port 8765, no auth) — the existing local dashboard UI + full CRUD API.
-- `sync_server.py` (new, port 8766, bearer-token-gated on every route) — the only thing a Cloudflare tunnel needs to point at, since a free Cloudflare account can't easily do path-based routing rules. One hostname → one port, no rules.
+**Architecture:** Two separate Flask apps on two ports, present on every instance (main and slave alike):
+- `server.py` (port 8765, no auth) — the local dashboard UI + full CRUD API. Unchanged by default. When `dashboard-config.json` has a `sync.upstream` key (`{"url": ..., "token": ...}`), its four checklist routes (`/api/checklist`, `/api/personal/checklist`, and their `<item_id>` variants) stop touching local `checklist.json`/`personal-checklist.json` and instead proxy to that URL's `/api/sync/checklist` — this is what makes an instance a "slave" for checklist purposes. Absent that key (the default), behavior is exactly what it is today.
+- `sync_server.py` (port 8766, bearer-token-gated on every route) — the only thing a Cloudflare tunnel needs to point at, since a free Cloudflare account can't easily do path-based routing rules. One hostname → one port, no rules. Every instance runs this, so the aggregator (or any peer) can pull that instance's sessions/reports and, on whichever instance is designated "main," read/write its checklist.
 
-Both processes read/write the same JSON files under `data/`. That means checklist writes can now come from two independent OS processes at once (a user editing locally in `server.py`, an aggregator hitting `sync_server.py`), so the shared data-access helpers move into a new dependency-free module, `dashboard_data.py`, and gain an OS-level file lock (`fcntl.flock`) in addition to the existing in-process `threading.Lock` — the in-process lock alone only serializes threads within one process, not across two.
+Both processes on the same machine read/write the same JSON files under `data/`. That means checklist writes on **main** can now come from two independent OS processes at once (a user editing locally in `server.py`, a slave's proxy hitting `sync_server.py`), so the shared data-access helpers move into a new dependency-free module, `dashboard_data.py`, and gain an OS-level file lock (`fcntl.flock`) in addition to the existing in-process `threading.Lock` — the in-process lock alone only serializes threads within one process, not across two.
 
-Sessions and reports stay **GET-only** on the sync side — they're written by agents running locally against `server.py`/the filesystem directly, never by a remote aggregator. Checklist gets full CRUD (GET/POST/PATCH/DELETE) on the sync side, because the actual driving use case is: create/check/delete a task on a machine you don't have direct access to, from the aggregating dashboard. There's exactly one writer location per list (the instance's own `checklist.json` / `personal-checklist.json`, now lock-protected) whether the write comes in locally or via sync — so there's no multi-writer conflict to resolve, just a normal authenticated remote write to the one file that already exists.
+Sessions and reports stay **GET-only** on the sync side, on every instance — they're written by agents running locally against `server.py`/the filesystem directly. A slave's own agent sessions and reports stay on that slave, in its own local files; only checklist is centralized. This means there's exactly one writer location for checklist (main's `checklist.json` / `personal-checklist.json`, lock-protected) whether the write comes in from main's own local UI or proxied from a slave — no multi-writer conflict to resolve.
 
-**Tech Stack:** Python 3.12, Flask 3.1, flasgger 0.9.7 (already installed in `.venv`), pytest (new dev dependency, installed into `.venv`, no requirements file exists in this repo to pin it in).
+**Tech Stack:** Python 3.12, Flask 3.1, flasgger 0.9.7 (already installed in `.venv`), pytest (new dev dependency, installed into `.venv`, no requirements file exists in this repo to pin it in). The checklist proxy (`sync_client.py`) uses only `urllib.request` from the standard library — no new dependency for outbound HTTP.
 
 ## Global Constraints
 
-- Zero behavior change to `server.py`'s routes, responses, or headers — the only change to that file is swapping its private helpers for imports from `dashboard_data.py`.
+- `server.py`'s routes, responses, and headers are unchanged by default. The only unconditional change to that file is swapping its private helpers for imports from `dashboard_data.py`. Its checklist routes gain a second code path (proxy to `sync.upstream`) that only activates when that config key is set — this is the one deliberate, opt-in behavior change, confined to the four checklist route families.
 - `sync_server.py` requires a token to even start — there's no `DASHBOARD_SYNC_ENABLED` opt-in flag like an earlier draft of this plan had, because this process's only job is sync; if you're running it, sync is enabled by definition. Missing token (env `DASHBOARD_SYNC_TOKEN`, or `dashboard-config.json`'s `sync.token` key) is a hard boot failure (`SystemExit`).
 - 401 body is always exactly `{"error": "unauthorized"}`. Token comparison uses `hmac.compare_digest` — never `==`.
 - `sync_server.py` never sends `Access-Control-Allow-*` headers — it's server-to-server traffic (aggregator → instance), not browser traffic, so there's nothing to add and nothing to guard.
 - `/apidocs`, `/apispec_1.json`, `/flasgger_static/*` on `sync_server.py` are excluded from the auth gate — Swagger UI needs to load before you can supply a token to it, and the issue's own rollout section says the tunnel maps `/apidocs` alongside `/api/sync/*`.
 - Report files are served only by looking up a `name` from `reports/reports-index.json` and resolving to `Path(entry["file"]).name` before calling `send_from_directory` — never take a raw filename/path from the client.
 - Any function in `dashboard_data.py` that mutates a JSON file (`_add`, `_add_first`, `_patch`, `_delete`) takes the cross-process file lock for the whole read-modify-write, not just the in-process one.
+- When `server.py` is proxying (slave mode) and the upstream is unreachable (network failure, not a 4xx/5xx from a live server), the local route returns `502 {"error": "upstream unavailable: <detail>"}` — never a silent fallback to local files, since that would let the slave's checklist quietly diverge from main's.
 - New tests live in `tests/`, use `pytest` + Flask's `app.test_client()`, and isolate themselves from the real `data/`/`reports/` directories via `monkeypatch.setattr` on the module's path constants — never read/write the developer's real personal data during tests.
 
 ---
@@ -1158,7 +1159,521 @@ git commit -m "feat: add checklist read/write over sync (GET/POST/PATCH/DELETE)"
 
 ---
 
-### Task 6: Deployment scripts + manual end-to-end verification
+### Task 7: Checklist proxy in `server.py` (slave mode) via `sync_client.py`
+
+An instance becomes a "slave" for checklist purposes by setting `dashboard-config.json`'s `sync.upstream` key to another instance's sync API (`{"url": "https://main.example.com", "token": "..."}`). Once set, `server.py`'s four checklist route families stop touching `checklist.json`/`personal-checklist.json` on disk and instead call that URL's `/api/sync/checklist` endpoints (Task 5) over plain `urllib.request` — no new dependency. The frontend (`dashboard-common.js`) doesn't change: it still calls the same local `/api/checklist` / `/api/personal/checklist` routes and gets the same response shapes back: it has no idea whether the answer came from disk or over the network.
+
+**Files:**
+- Create: `sync_client.py`
+- Modify: `server.py` — add `_resolve_upstream()` / `UPSTREAM` near the top (after the `dashboard_data` import), and branch all four checklist route families (`get_checklist`, `add_checklist`, `patch_checklist`, `delete_checklist`, `get_personal_checklist`, `add_personal_checklist`, `patch_personal_checklist`, `delete_personal_checklist`) on `UPSTREAM`.
+- Create: `tests/test_sync_client.py`
+- Create: `tests/test_server_checklist_proxy.py`
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks directly — `sync_client.py` is a standalone HTTP client module. It targets the wire format `sync_server.py` already serves (Task 5): `GET /api/sync/checklist` → `{"checklist": [...], "personal_checklist": [...]}`; `POST /api/sync/checklist` body `{"text": ..., "list": ...}` → `201` + item; `PATCH /api/sync/checklist/<id>?list=...` body `{"checked": ...}` → `200` + item or `404`; `DELETE /api/sync/checklist/<id>?list=...` → `204` or `404`.
+- Produces: `sync_client.UpstreamError` (exception; raised for network failures, and also raised by the module-level functions for any unexpected HTTP status from a live upstream other than the 404-as-not-found case in `patch_checklist_item`/`delete_checklist_item`), `sync_client.get_checklist(url, token, list_name) -> list`, `sync_client.add_checklist_item(url, token, list_name, text) -> dict`, `sync_client.patch_checklist_item(url, token, list_name, item_id, checked) -> dict | None`, `sync_client.delete_checklist_item(url, token, list_name, item_id) -> bool`. `list_name` is `"checklist"` or `"personal-checklist"`, same vocabulary as `sync_server.py`'s `_checklist_filename`.
+- Produces: `server._resolve_upstream() -> dict | None` (`{"url": ..., "token": ...}` or `None`), `server.UPSTREAM` (module-level, resolved at import time from `dashboard-config.json`'s `sync.upstream` key — no env var for this one, since it's inherently per-machine config, not a secret-only value).
+
+- [ ] **Step 1: Write the failing tests for `sync_client.py`**
+
+These run a real `sync_server.app` in a background thread (via `werkzeug.serving.make_server`, ephemeral port) so `sync_client.py` is tested against the actual wire format, not a mock.
+
+`tests/test_sync_client.py`:
+```python
+import json
+import threading
+
+import pytest
+from werkzeug.serving import make_server
+
+import sync_client
+import sync_server
+
+
+@pytest.fixture
+def live_sync_server(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(sync_server, "DATA", data_dir)
+    monkeypatch.setattr(sync_server, "SYNC_TOKEN", "test-token")
+
+    server = make_server("127.0.0.1", 0, sync_server.app)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}", data_dir
+    finally:
+        server.shutdown()
+        thread.join()
+
+
+def test_get_checklist_returns_work_list(live_sync_server):
+    url, data_dir = live_sync_server
+    (data_dir / "checklist.json").write_text(json.dumps([{"id": "1", "text": "a"}]), encoding="utf-8")
+    result = sync_client.get_checklist(url, "test-token", "checklist")
+    assert result == [{"id": "1", "text": "a"}]
+
+
+def test_get_checklist_returns_personal_list(live_sync_server):
+    url, data_dir = live_sync_server
+    (data_dir / "personal-checklist.json").write_text(json.dumps([{"id": "2", "text": "b"}]), encoding="utf-8")
+    result = sync_client.get_checklist(url, "test-token", "personal-checklist")
+    assert result == [{"id": "2", "text": "b"}]
+
+
+def test_add_checklist_item_returns_created_item(live_sync_server):
+    url, _ = live_sync_server
+    item = sync_client.add_checklist_item(url, "test-token", "checklist", "new task")
+    assert item["text"] == "new task"
+    assert item["checked"] is False
+
+
+def test_patch_checklist_item_returns_updated_item(live_sync_server):
+    url, _ = live_sync_server
+    item = sync_client.add_checklist_item(url, "test-token", "checklist", "x")
+    updated = sync_client.patch_checklist_item(url, "test-token", "checklist", item["id"], True)
+    assert updated["checked"] is True
+
+
+def test_patch_checklist_item_missing_id_returns_none(live_sync_server):
+    url, _ = live_sync_server
+    assert sync_client.patch_checklist_item(url, "test-token", "checklist", "nope", True) is None
+
+
+def test_delete_checklist_item_returns_true(live_sync_server):
+    url, _ = live_sync_server
+    item = sync_client.add_checklist_item(url, "test-token", "checklist", "x")
+    assert sync_client.delete_checklist_item(url, "test-token", "checklist", item["id"]) is True
+
+
+def test_delete_checklist_item_missing_id_returns_false(live_sync_server):
+    url, _ = live_sync_server
+    assert sync_client.delete_checklist_item(url, "test-token", "checklist", "nope") is False
+
+
+def test_wrong_token_raises_upstream_error(live_sync_server):
+    url, _ = live_sync_server
+    with pytest.raises(sync_client.UpstreamError):
+        sync_client.get_checklist(url, "wrong-token", "checklist")
+
+
+def test_unreachable_host_raises_upstream_error():
+    with pytest.raises(sync_client.UpstreamError):
+        sync_client.get_checklist("http://127.0.0.1:1", "any-token", "checklist")
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_client.py -v`
+Expected: `ModuleNotFoundError: No module named 'sync_client'`.
+
+- [ ] **Step 3: Create `sync_client.py`**
+
+```python
+#!/usr/bin/env python3
+import json
+import urllib.error
+import urllib.request
+
+
+class UpstreamError(Exception):
+    """Raised by _request only for network-level failures (DNS, connection
+    refused, timeout) — a well-formed HTTP response, even a 4xx/5xx, is
+    returned as (status, body) instead. The module-level functions below then
+    layer their own meaning on top of that: 404 is treated as a normal "not
+    found" result (None/False) where it's a valid business outcome (patch,
+    delete), but any other unexpected status from a live server — including
+    auth failures — is also raised as UpstreamError, since the caller has no
+    useful way to act on "main said 401" beyond surfacing that sync is broken.
+    """
+
+
+def _request(url: str, token: str, method: str, path: str, body: dict | None = None):
+    req = urllib.request.Request(
+        url.rstrip("/") + path,
+        data=json.dumps(body).encode("utf-8") if body is not None else None,
+        method=method,
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    try:
+        resp = urllib.request.urlopen(req, timeout=5)
+    except urllib.error.HTTPError as exc:
+        raw = exc.read()
+        return exc.code, (json.loads(raw) if raw else None)
+    except urllib.error.URLError as exc:
+        raise UpstreamError(str(exc.reason)) from exc
+    with resp:
+        raw = resp.read()
+        return resp.status, (json.loads(raw) if raw else None)
+
+
+def get_checklist(url: str, token: str, list_name: str) -> list:
+    status, body = _request(url, token, "GET", "/api/sync/checklist")
+    if status != 200:
+        raise UpstreamError(f"unexpected status {status} from GET /api/sync/checklist")
+    key = "checklist" if list_name == "checklist" else "personal_checklist"
+    return body[key]
+
+
+def add_checklist_item(url: str, token: str, list_name: str, text: str) -> dict:
+    status, body = _request(url, token, "POST", "/api/sync/checklist", {"text": text, "list": list_name})
+    if status != 201:
+        raise UpstreamError(f"unexpected status {status} from POST /api/sync/checklist: {body}")
+    return body
+
+
+def patch_checklist_item(url: str, token: str, list_name: str, item_id: str, checked: bool):
+    status, body = _request(
+        url, token, "PATCH", f"/api/sync/checklist/{item_id}?list={list_name}", {"checked": checked}
+    )
+    if status == 404:
+        return None
+    if status != 200:
+        raise UpstreamError(f"unexpected status {status} from PATCH /api/sync/checklist/{item_id}: {body}")
+    return body
+
+
+def delete_checklist_item(url: str, token: str, list_name: str, item_id: str) -> bool:
+    status, body = _request(url, token, "DELETE", f"/api/sync/checklist/{item_id}?list={list_name}")
+    if status == 404:
+        return False
+    if status != 204:
+        raise UpstreamError(f"unexpected status {status} from DELETE /api/sync/checklist/{item_id}: {body}")
+    return True
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_client.py -v`
+Expected: 9 passed.
+
+- [ ] **Step 5: Write the failing tests for `server.py`'s proxy branch**
+
+`tests/test_server_checklist_proxy.py`:
+```python
+import pytest
+
+import server
+import sync_client
+
+
+@pytest.fixture
+def client(monkeypatch):
+    monkeypatch.setattr(server, "UPSTREAM", {"url": "http://main.example", "token": "up-token"})
+    return server.app.test_client()
+
+
+def test_get_checklist_proxies_to_upstream(client, monkeypatch):
+    monkeypatch.setattr(
+        sync_client, "get_checklist", lambda url, token, list_name: [{"id": "1", "text": "from main"}]
+    )
+    resp = client.get("/api/checklist")
+    assert resp.status_code == 200
+    assert resp.get_json() == [{"id": "1", "text": "from main"}]
+
+
+def test_get_personal_checklist_proxies_with_personal_list_name(client, monkeypatch):
+    seen = {}
+
+    def fake_get_checklist(url, token, list_name):
+        seen["list_name"] = list_name
+        return []
+
+    monkeypatch.setattr(sync_client, "get_checklist", fake_get_checklist)
+    client.get("/api/personal/checklist")
+    assert seen["list_name"] == "personal-checklist"
+
+
+def test_post_checklist_proxies_and_returns_created_item(client, monkeypatch):
+    monkeypatch.setattr(
+        sync_client,
+        "add_checklist_item",
+        lambda url, token, list_name, text: {"id": "1", "text": text, "checked": False},
+    )
+    resp = client.post("/api/checklist", json={"text": "new task"})
+    assert resp.status_code == 201
+    assert resp.get_json()["text"] == "new task"
+
+
+def test_patch_checklist_proxies_and_returns_updated_item(client, monkeypatch):
+    monkeypatch.setattr(
+        sync_client,
+        "patch_checklist_item",
+        lambda url, token, list_name, item_id, checked: {"id": item_id, "checked": checked},
+    )
+    resp = client.patch("/api/checklist/abc123", json={"checked": True})
+    assert resp.status_code == 200
+    assert resp.get_json() == {"id": "abc123", "checked": True}
+
+
+def test_patch_checklist_proxy_missing_id_returns_404(client, monkeypatch):
+    monkeypatch.setattr(
+        sync_client, "patch_checklist_item", lambda url, token, list_name, item_id, checked: None
+    )
+    resp = client.patch("/api/checklist/nope", json={"checked": True})
+    assert resp.status_code == 404
+
+
+def test_delete_checklist_proxies(client, monkeypatch):
+    monkeypatch.setattr(
+        sync_client, "delete_checklist_item", lambda url, token, list_name, item_id: True
+    )
+    resp = client.delete("/api/checklist/abc123")
+    assert resp.status_code == 204
+
+
+def test_delete_checklist_proxy_missing_id_returns_404(client, monkeypatch):
+    monkeypatch.setattr(
+        sync_client, "delete_checklist_item", lambda url, token, list_name, item_id: False
+    )
+    resp = client.delete("/api/checklist/nope")
+    assert resp.status_code == 404
+
+
+def test_upstream_unreachable_returns_502(client, monkeypatch):
+    def raise_upstream_error(*args, **kwargs):
+        raise sync_client.UpstreamError("connection refused")
+
+    monkeypatch.setattr(sync_client, "get_checklist", raise_upstream_error)
+    resp = client.get("/api/checklist")
+    assert resp.status_code == 502
+    assert "upstream unavailable" in resp.get_json()["error"]
+
+
+def test_no_upstream_configured_uses_local_files(monkeypatch, tmp_path):
+    monkeypatch.setattr(server, "UPSTREAM", None)
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(server, "DATA", data_dir)
+    client = server.app.test_client()
+    resp = client.get("/api/checklist")
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+```
+
+- [ ] **Step 6: Run tests to verify they fail**
+
+Run: `.venv/bin/python -m pytest tests/test_server_checklist_proxy.py -v`
+Expected: `AttributeError: module 'server' has no attribute 'UPSTREAM'`.
+
+- [ ] **Step 7: Wire the proxy into `server.py`**
+
+Add near the top of `server.py`, after the `dashboard_data` import:
+```python
+import json
+
+import sync_client
+
+
+def _resolve_upstream() -> dict | None:
+    try:
+        config = json.loads((BASE / "dashboard-config.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+    upstream = config.get("sync", {}).get("upstream")
+    if not upstream or not upstream.get("url") or not upstream.get("token"):
+        return None
+    return upstream
+
+
+UPSTREAM = _resolve_upstream()
+```
+
+Replace the existing `get_checklist` (work list) with:
+```python
+@app.route("/api/checklist", methods=["GET"])
+def get_checklist():
+    """Get all checklist items.
+    ---
+    tags: [Checklist]
+    responses:
+      200:
+        description: List of checklist items
+        schema:
+          type: array
+          items:
+            $ref: '#/definitions/ChecklistItem'
+      502:
+        description: Upstream sync server unreachable (only when sync.upstream is configured)
+    definitions:
+      ChecklistItem:
+        type: object
+        properties:
+          id:
+            type: string
+            example: a1b2c3d4
+          text:
+            type: string
+            example: Review PRs
+          checked:
+            type: boolean
+          created_at:
+            type: string
+            format: date-time
+    """
+    if UPSTREAM:
+        try:
+            return jsonify(sync_client.get_checklist(UPSTREAM["url"], UPSTREAM["token"], "checklist"))
+        except sync_client.UpstreamError as exc:
+            return jsonify({"error": f"upstream unavailable: {exc}"}), 502
+    return jsonify(_list("checklist.json"))
+```
+
+Replace `add_checklist`:
+```python
+@app.route("/api/checklist", methods=["POST"])
+def add_checklist():
+    """Add a checklist item.
+    ---
+    tags: [Checklist]
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [text]
+          properties:
+            text:
+              type: string
+              example: Review PRs
+    responses:
+      201:
+        description: Created item
+        schema:
+          $ref: '#/definitions/ChecklistItem'
+      400:
+        description: text required
+      502:
+        description: Upstream sync server unreachable (only when sync.upstream is configured)
+    """
+    body = request.get_json(force=True) or {}
+    text = str(body.get("text", "")).strip()
+    if not text:
+        return jsonify({"error": "text required"}), 400
+    if UPSTREAM:
+        try:
+            return jsonify(sync_client.add_checklist_item(UPSTREAM["url"], UPSTREAM["token"], "checklist", text)), 201
+        except sync_client.UpstreamError as exc:
+            return jsonify({"error": f"upstream unavailable: {exc}"}), 502
+    item = {
+        "id": uuid.uuid4().hex[:8],
+        "text": text,
+        "checked": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    return jsonify(_add("checklist.json", item)), 201
+```
+
+Replace `patch_checklist`:
+```python
+@app.route("/api/checklist/<item_id>", methods=["PATCH"])
+def patch_checklist(item_id):
+    """Toggle or set checked state of a checklist item.
+    ---
+    tags: [Checklist]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            checked:
+              type: boolean
+    responses:
+      200:
+        description: Updated item
+        schema:
+          $ref: '#/definitions/ChecklistItem'
+      404:
+        description: Not found
+      502:
+        description: Upstream sync server unreachable (only when sync.upstream is configured)
+    """
+    body = request.get_json(force=True) or {}
+    if UPSTREAM:
+        checked = bool(body["checked"]) if "checked" in body else None
+        try:
+            if checked is None:
+                current = sync_client.get_checklist(UPSTREAM["url"], UPSTREAM["token"], "checklist")
+                existing = next((i for i in current if i["id"] == item_id), None)
+                checked = not existing.get("checked", False) if existing else True
+            item = sync_client.patch_checklist_item(UPSTREAM["url"], UPSTREAM["token"], "checklist", item_id, checked)
+        except sync_client.UpstreamError as exc:
+            return jsonify({"error": f"upstream unavailable: {exc}"}), 502
+        if item is None:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(item)
+
+    def mutate(item):
+        item["checked"] = bool(body["checked"]) if "checked" in body else not item.get("checked", False)
+    item = _patch("checklist.json", item_id, mutate)
+    if item is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(item)
+```
+
+Replace `delete_checklist`:
+```python
+@app.route("/api/checklist/<item_id>", methods=["DELETE"])
+def delete_checklist(item_id):
+    """Delete a checklist item.
+    ---
+    tags: [Checklist]
+    parameters:
+      - in: path
+        name: item_id
+        type: string
+        required: true
+    responses:
+      204:
+        description: Deleted
+      404:
+        description: Not found
+      502:
+        description: Upstream sync server unreachable (only when sync.upstream is configured)
+    """
+    if UPSTREAM:
+        try:
+            deleted = sync_client.delete_checklist_item(UPSTREAM["url"], UPSTREAM["token"], "checklist", item_id)
+        except sync_client.UpstreamError as exc:
+            return jsonify({"error": f"upstream unavailable: {exc}"}), 502
+        if not deleted:
+            return jsonify({"error": "not found"}), 404
+        return "", 204
+    if not _delete("checklist.json", item_id):
+        return jsonify({"error": "not found"}), 404
+    return "", 204
+```
+
+Apply the identical pattern to the four personal-checklist routes (`get_personal_checklist`, `add_personal_checklist`, `patch_personal_checklist`, `delete_personal_checklist`), the only difference being `"personal-checklist"` instead of `"checklist"` as the `list_name` argument, and `"personal-checklist.json"` as the local filename — same shape as the existing pairing between these two route families already in the file.
+
+Note on `patch_checklist`'s toggle-without-body case: the local `_patch` helper can read-and-flip `checked` atomically under its own lock, but the proxy path (when `checked` is omitted from the request body) would need two separate HTTP calls — read current state, then PATCH with the computed value — with a small window where a concurrent write in between could compute a stale toggle. In practice this window is never hit: `dashboard-common.js`'s `toggleChecklist()` (`dashboard-common.js:136-149`) always sends an explicit `{"checked": !done}` body, computed client-side from the checkbox's current DOM state, and never omits `checked`. The read-then-patch fallback above exists only so the proxy path doesn't silently misbehave for a hypothetical caller (e.g. a raw `curl` PATCH with an empty body) that omits it — it's a documented best-effort, not a claim of atomicity.
+
+- [ ] **Step 8: Run tests to verify they pass**
+
+Run: `.venv/bin/python -m pytest tests/test_server_checklist_proxy.py -v`
+Expected: 9 passed.
+
+- [ ] **Step 9: Run the full suite**
+
+Run: `.venv/bin/python -m pytest tests/ -v`
+Expected: all tests across Tasks 1–7 pass (63 total).
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add sync_client.py server.py tests/test_sync_client.py tests/test_server_checklist_proxy.py
+git commit -m "feat: proxy checklist routes to a configured sync.upstream (slave mode)"
+```
+
+---
+
+### Task 8: Deployment scripts + manual end-to-end verification
 
 **Files:**
 - Create: `serve-sync.sh` (mirrors `serve.sh`)
@@ -1273,7 +1788,56 @@ Expected: header present (`*`) — proves `server.py`'s CORS/behavior wasn't tou
 
 Open `http://localhost:8766/apidocs` in a browser (or `curl -s http://localhost:8766/apispec_1.json | grep -o '"Sync"'`) — confirm the `Sync` tag lists all six endpoints with a lock icon (bearer auth), and that the docs page itself loaded without needing a token.
 
-- [ ] **Step 10: Stop both servers**
+- [ ] **Step 10: Simulate slave/proxy mode against the same main instance**
+
+`server.py` hardcodes port 8765, so a true two-machine setup can't be fully reproduced on one dev box — Task 7's automated tests already cover the proxy logic in isolation. This step is a real-world integration sanity check: point this instance's own `server.py` at its own `sync_server.py` as if it were a slave pointed at some other main, proving the wiring works end to end, then revert.
+
+Stop the currently running `server.py` (keep `sync_server.py` running):
+```bash
+kill %2  # the server.py job from Step 4; check `jobs` if the numbering differs
+```
+
+Back up your real config and write a temporary one pointing at the local sync server:
+```bash
+cp dashboard-config.json dashboard-config.json.bak 2>/dev/null || true
+python3 -c "
+import json
+from pathlib import Path
+path = Path('dashboard-config.json')
+config = json.loads(path.read_text()) if path.exists() else {}
+config['sync'] = {'upstream': {'url': 'http://localhost:8766', 'token': 'dev-secret'}}
+path.write_text(json.dumps(config, indent=2))
+"
+```
+
+- [ ] **Step 11: Restart `server.py` in proxy mode and confirm it reads through**
+
+```bash
+.venv/bin/python server.py &
+sleep 1
+curl -s -X POST -H "Content-Type: application/json" -d '{"text": "created via slave"}' http://localhost:8765/api/checklist
+curl -s -H "Authorization: Bearer dev-secret" http://localhost:8766/api/sync/checklist | grep -o "created via slave"
+```
+Expected: the `POST` to the local, unauthenticated `/api/checklist` (no bearer token needed — that's `server.py`'s own local API, unchanged) returns `201` with the created item, and the second `curl` — hitting `sync_server.py` directly — shows the same item landed in `checklist.json`, proving `server.py` proxied the write instead of creating a second, local copy.
+
+- [ ] **Step 12: Confirm a local read also proxies (not a stale local file)**
+
+```bash
+curl -s http://localhost:8765/api/checklist | grep -o "created via slave"
+```
+Expected: prints `created via slave` — this instance's own `GET /api/checklist` is now backed by `sync_server.py`'s data, not a local `checklist.json` (which, if `sync.upstream` is set, is never read).
+
+- [ ] **Step 13: Restore the real config**
+
+```bash
+kill %2  # the proxy-mode server.py from Step 11
+mv dashboard-config.json.bak dashboard-config.json 2>/dev/null || rm -f dashboard-config.json
+.venv/bin/python server.py &
+sleep 1
+curl -s http://localhost:8765/api/checklist  # back to local files — should not include "created via slave"
+```
+
+- [ ] **Step 14: Stop both servers**
 
 ```bash
 kill %1 %2
@@ -1287,3 +1851,5 @@ kill %1 %2
 - **Sessions/reports writes over sync** — explicitly read-only; they're written by agents executing locally, and there's no remote-management use case for them the way there is for checklist tasks.
 - **Per-instance tokens** — the issue's own open question resolves to "one shared secret for all," which `DASHBOARD_SYNC_TOKEN` implements.
 - **Rate limiting** — logging auth failures (`app.logger.warning`) is the chosen minimum bar; adding a dependency like Flask-Limiter isn't justified for a single-user tool talking to a small, known set of instances.
+- **An aggregating "combined view" dashboard UI** — this plan builds the sync API each instance exposes (Tasks 1–6) and the checklist proxy that makes hub/spoke actually usable (Task 7). A page that renders every instance's sessions/reports side by side is a separate frontend deliverable that consumes these APIs; it isn't built here.
+- **Multi-hop sync chains** — `sync.upstream` points one instance at exactly one main. A slave being itself the upstream for a third instance (chained hub/spoke) is unsupported and untested.
