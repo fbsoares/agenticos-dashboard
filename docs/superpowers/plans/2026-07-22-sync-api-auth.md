@@ -12,6 +12,8 @@ Both processes on the same machine read/write the same JSON files under `data/`.
 
 Sessions and reports stay **GET-only** on the sync side, on every instance — they're written by agents running locally against `server.py`/the filesystem directly. A slave's own agent sessions and reports stay on that slave, in its own local files; only checklist is centralized. This means there's exactly one writer location for checklist (main's `checklist.json` / `personal-checklist.json`, lock-protected) whether the write comes in from main's own local UI or proxied from a slave — no multi-writer conflict to resolve.
 
+Sessions being GET-only and per-instance doesn't mean they're invisible from one place: any instance can list a `sync.peers` array in its own `dashboard-config.json` (name/url/token per peer) and call its own new `GET /api/sessions/aggregated`, which pulls every configured peer's sessions alongside its own and tags each with a `"machine"` field. `dashboard-agents.html`'s existing session cards render that tag directly. This is opt-in per instance — typically only main would configure peers — and is a pull, not a push: nothing runs unless someone (a person, or eventually an aggregator) requests `/api/sessions/aggregated`.
+
 **Tech Stack:** Python 3.12, Flask 3.1, flasgger 0.9.7 (already installed in `.venv`), pytest (new dev dependency, installed into `.venv`, no requirements file exists in this repo to pin it in). The checklist proxy (`sync_client.py`) uses only `urllib.request` from the standard library — no new dependency for outbound HTTP.
 
 ## Global Constraints
@@ -1845,11 +1847,327 @@ kill %1 %2
 
 ---
 
+### Task 9: Aggregated, machine-tagged session list (`GET /api/sessions/aggregated`) + `dashboard-agents.html`
+
+Any instance can list its own sessions plus every configured peer's sessions in one call, each item tagged with which machine it came from. This is opt-in per instance via a `sync.peers` list in `dashboard-config.json` — typically only Main would configure this, but nothing prevents a slave (or any instance) from also having its own peers list; "aggregator" here is a role an instance opts into, not a hardcoded main-only special case.
+
+**Files:**
+- Modify: `sync_client.py` — add `get_sessions`.
+- Modify: `server.py` — add `_resolve_peers()` / `PEERS` / `INSTANCE_NAME`, and one new route.
+- Modify: `tests/test_sync_client.py` — add sessions tests, reusing the `live_sync_server` fixture from Task 7.
+- Create: `tests/test_server_sessions_aggregated.py`
+- Modify: `dashboard-agents.html` — `pollAgentSessions()` now calls the new endpoint; `renderAgentCard` gains a "Machine" chip; one new CSS rule.
+
+**Interfaces:**
+- Consumes: `sync_client._request` (Task 7, private), `dashboard_data.DATA`, `dashboard_data._read` (Task 1).
+- Produces: `sync_client.get_sessions(url, token) -> list` (raises `sync_client.UpstreamError` on network failure or any non-200 status). `server._resolve_peers() -> tuple[list[dict], str]` (returns `(peers, instance_name)`; `peers` is a list of `{"name": ..., "url": ..., "token": ...}` dicts filtered to only fully-specified entries; `instance_name` defaults to `"local"` when `dashboard-config.json`'s `sync.instance_name` is unset). `server.PEERS`, `server.INSTANCE_NAME` (module-level, resolved at import). `GET /api/sessions/aggregated` → `{"sessions": [...], "unreachable": [...]}`, where every session dict has a `"machine"` key added and `unreachable` lists the `name` of any configured peer that raised `UpstreamError`.
+
+- [ ] **Step 1: Write the failing tests for `sync_client.get_sessions`**
+
+Add to `tests/test_sync_client.py` (reuses the `live_sync_server` fixture already defined there from Task 7):
+```python
+def test_get_sessions_returns_registry_contents(live_sync_server):
+    url, data_dir = live_sync_server
+    (data_dir / "sessions-registry.json").write_text(
+        json.dumps([{"id": "1", "provider": "edgar", "name": "x", "status": "active"}]), encoding="utf-8"
+    )
+    result = sync_client.get_sessions(url, "test-token")
+    assert result == [{"id": "1", "provider": "edgar", "name": "x", "status": "active"}]
+
+
+def test_get_sessions_wrong_token_raises_upstream_error(live_sync_server):
+    url, _ = live_sync_server
+    with pytest.raises(sync_client.UpstreamError):
+        sync_client.get_sessions(url, "wrong-token")
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_client.py -v`
+Expected: the two new tests fail with `AttributeError: module 'sync_client' has no attribute 'get_sessions'`; the existing 9 from Task 7 still pass.
+
+- [ ] **Step 3: Add `get_sessions` to `sync_client.py`**
+
+Append:
+```python
+def get_sessions(url: str, token: str) -> list:
+    status, body = _request(url, token, "GET", "/api/sync/sessions")
+    if status != 200:
+        raise UpstreamError(f"unexpected status {status} from GET /api/sync/sessions")
+    return body
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `.venv/bin/python -m pytest tests/test_sync_client.py -v`
+Expected: 11 passed.
+
+- [ ] **Step 5: Write the failing tests for the aggregated endpoint**
+
+`tests/test_server_sessions_aggregated.py`:
+```python
+import json
+
+import pytest
+
+import server
+import sync_client
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.setattr(server, "DATA", data_dir)
+    monkeypatch.setattr(server, "PEERS", [])
+    monkeypatch.setattr(server, "INSTANCE_NAME", "main")
+    return server.app.test_client()
+
+
+def test_aggregated_returns_local_sessions_tagged_with_instance_name(client):
+    (server.DATA / "sessions-registry.json").write_text(
+        json.dumps([{"id": "1", "provider": "edgar", "name": "x", "status": "active"}]), encoding="utf-8"
+    )
+    resp = client.get("/api/sessions/aggregated")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body == {
+        "sessions": [{"id": "1", "provider": "edgar", "name": "x", "status": "active", "machine": "main"}],
+        "unreachable": [],
+    }
+
+
+def test_aggregated_empty_when_no_local_sessions_and_no_peers(client):
+    resp = client.get("/api/sessions/aggregated")
+    assert resp.get_json() == {"sessions": [], "unreachable": []}
+
+
+def test_aggregated_merges_peer_sessions_tagged_with_peer_name(client, monkeypatch):
+    monkeypatch.setattr(server, "PEERS", [{"name": "slave-a", "url": "http://slave-a", "token": "t"}])
+    monkeypatch.setattr(
+        sync_client,
+        "get_sessions",
+        lambda url, token: [{"id": "2", "provider": "claude", "name": "y", "status": "active"}],
+    )
+    resp = client.get("/api/sessions/aggregated")
+    body = resp.get_json()
+    assert {"id": "2", "provider": "claude", "name": "y", "status": "active", "machine": "slave-a"} in body["sessions"]
+    assert body["unreachable"] == []
+
+
+def test_aggregated_unreachable_peer_does_not_drop_others(client, monkeypatch):
+    monkeypatch.setattr(
+        server,
+        "PEERS",
+        [
+            {"name": "slave-a", "url": "http://slave-a", "token": "t"},
+            {"name": "slave-b", "url": "http://slave-b", "token": "t"},
+        ],
+    )
+
+    def fake_get_sessions(url, token):
+        if "slave-b" in url:
+            raise sync_client.UpstreamError("connection refused")
+        return [{"id": "2", "provider": "claude", "name": "y", "status": "active"}]
+
+    monkeypatch.setattr(sync_client, "get_sessions", fake_get_sessions)
+    resp = client.get("/api/sessions/aggregated")
+    body = resp.get_json()
+    assert body["unreachable"] == ["slave-b"]
+    assert any(s["machine"] == "slave-a" for s in body["sessions"])
+    assert not any(s["machine"] == "slave-b" for s in body["sessions"])
+```
+
+- [ ] **Step 6: Run tests to verify they fail**
+
+Run: `.venv/bin/python -m pytest tests/test_server_sessions_aggregated.py -v`
+Expected: `AttributeError: module 'server' has no attribute 'PEERS'`.
+
+- [ ] **Step 7: Implement `_resolve_peers` and the route in `server.py`**
+
+Add near `UPSTREAM = _resolve_upstream()` (Task 7):
+```python
+def _resolve_peers():
+    try:
+        config = json.loads((BASE / "dashboard-config.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return [], "local"
+    sync_cfg = config.get("sync", {})
+    peers = [
+        p for p in sync_cfg.get("peers", [])
+        if p.get("name") and p.get("url") and p.get("token")
+    ]
+    instance_name = sync_cfg.get("instance_name") or "local"
+    return peers, instance_name
+
+
+PEERS, INSTANCE_NAME = _resolve_peers()
+```
+
+Add the route, near the other `/api/sessions*` routes:
+```python
+@app.route("/api/sessions/aggregated", methods=["GET"])
+def get_sessions_aggregated():
+    """List sessions from this instance and every configured sync.peers entry, tagged with 'machine'.
+    ---
+    tags: [Sessions]
+    responses:
+      200:
+        description: Combined session list, plus the names of any peers that couldn't be reached
+    """
+    sessions = [{**s, "machine": INSTANCE_NAME} for s in _read(DATA / "sessions-registry.json")]
+    unreachable = []
+    for peer in PEERS:
+        try:
+            remote = sync_client.get_sessions(peer["url"], peer["token"])
+        except sync_client.UpstreamError:
+            unreachable.append(peer["name"])
+            continue
+        sessions.extend({**s, "machine": peer["name"]} for s in remote)
+    return jsonify({"sessions": sessions, "unreachable": unreachable})
+```
+
+- [ ] **Step 8: Run tests to verify they pass**
+
+Run: `.venv/bin/python -m pytest tests/test_server_sessions_aggregated.py -v`
+Expected: 4 passed.
+
+- [ ] **Step 9: Run the full suite**
+
+Run: `.venv/bin/python -m pytest tests/ -v`
+Expected: all tests across Tasks 1–9 pass (69 total).
+
+- [ ] **Step 10: Wire the endpoint into `dashboard-agents.html`**
+
+Find `pollAgentSessions()` (around line 648):
+```javascript
+function pollAgentSessions() {
+  Promise.all([
+    fetch('session-data.json?t=' + Date.now()).then(r => r.ok ? r.json() : {sessions:[]}).catch(() => ({sessions:[]})),
+    fetch('/api/sessions?active=true&t=' + Date.now()).then(r => r.ok ? r.json() : []).catch(() => []),
+  ]).then(([fileData, manual]) => {
+    fileSessions = (fileData.sessions || []).map(s => ({ ...s, id: s.session_id }));
+    manualSessions = (manual || []).map(s => ({ ...s, active: s.status !== 'ended' }));
+    renderAgentSessions();
+  });
+}
+```
+
+Replace with:
+```javascript
+function pollAgentSessions() {
+  Promise.all([
+    fetch('session-data.json?t=' + Date.now()).then(r => r.ok ? r.json() : {sessions:[]}).catch(() => ({sessions:[]})),
+    fetch('/api/sessions/aggregated?t=' + Date.now()).then(r => r.ok ? r.json() : {sessions:[]}).catch(() => ({sessions:[]})),
+  ]).then(([fileData, agg]) => {
+    fileSessions = (fileData.sessions || []).map(s => ({ ...s, id: s.session_id }));
+    manualSessions = (agg.sessions || []).map(s => ({ ...s, active: s.status !== 'ended' }));
+    renderAgentSessions();
+  });
+}
+```
+
+`endAgentSession`/`startAgentSession` keep posting to plain `/api/sessions` (Task 7's proxy pattern doesn't apply here — sessions are never proxied, only pulled, per the earlier decision that agents write sessions locally). Registering/ending a session from `dashboard-agents.html` always affects *this* machine's own registry, which is exactly right: you register a session where the agent is actually running.
+
+Find `renderAgentCard` (around line 618):
+```javascript
+function renderAgentCard(s) {
+  const color = providerColor(s.provider);
+  const name = s.name || (s.cwd ? s.cwd.replace(/\/+$/,'').split('/').pop() : s.provider);
+  const subLine = s.cwd || s.notes || '';
+  const canEnd = s.provider === 'edgar' || s.provider === 'spinnable' || s.provider === 'other';
+  return `<div class="agent-card" style="--badge-color:${color}">
+    <div class="agent-card-top">
+      <span class="agent-card-badge">${escHtml(s.provider)}</span>
+      <span class="agent-card-name">${escHtml(name)}</span>
+    </div>
+    ${subLine ? `<div class="agent-card-sub" title="${escAttr(subLine)}">${escHtml(subLine)}</div>` : ''}
+    ${s.last_prompt ? `<div class="agent-card-prompt" title="${escAttr(s.last_prompt)}">${escHtml(s.last_prompt)}</div>` : ''}
+    <div class="agent-card-bottom">
+      <span class="agent-card-tag">active</span>
+      ${canEnd ? `<button class="agent-card-end" onclick="endAgentSession('${escAttr(s.id)}')">End</button>` : ''}
+    </div>
+  </div>`;
+}
+```
+
+Replace with:
+```javascript
+function renderAgentCard(s) {
+  const color = providerColor(s.provider);
+  const name = s.name || (s.cwd ? s.cwd.replace(/\/+$/,'').split('/').pop() : s.provider);
+  const subLine = s.cwd || s.notes || '';
+  const canEnd = s.provider === 'edgar' || s.provider === 'spinnable' || s.provider === 'other';
+  return `<div class="agent-card" style="--badge-color:${color}">
+    <div class="agent-card-top">
+      <span class="agent-card-badge">${escHtml(s.provider)}</span>
+      <span class="agent-card-name">${escHtml(name)}</span>
+      ${s.machine ? `<span class="agent-card-machine">${escHtml(s.machine)}</span>` : ''}
+    </div>
+    ${subLine ? `<div class="agent-card-sub" title="${escAttr(subLine)}">${escHtml(subLine)}</div>` : ''}
+    ${s.last_prompt ? `<div class="agent-card-prompt" title="${escAttr(s.last_prompt)}">${escHtml(s.last_prompt)}</div>` : ''}
+    <div class="agent-card-bottom">
+      <span class="agent-card-tag">active</span>
+      ${canEnd ? `<button class="agent-card-end" onclick="endAgentSession('${escAttr(s.id)}')">End</button>` : ''}
+    </div>
+  </div>`;
+}
+```
+
+`fileSessions` (from `session-data.json`) never get a `machine` key, so their cards render exactly as before — the `${s.machine ? ... : ''}` guard means no chip, no layout change, for anything the aggregated endpoint didn't tag. Only manually-registered sessions (which is what the whole sync design targets) get the chip, and only once at least one distinct machine is genuinely present — with no `sync.peers` configured, every card just says "local," which is honest but harmless.
+
+Find the `.agent-card-tag` CSS rule (around line 559) and add a sibling rule after it:
+```css
+  .agent-card-machine {
+    margin-left: auto;
+    font-family: 'DM Mono', monospace; font-size: 0.6rem;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--muted);
+  }
+```
+
+- [ ] **Step 11: Manual verification**
+
+`dashboard-agents.html` is static markup served by `server.py`, so there's no separate build step — reload the page after editing.
+
+With `server.py` and `sync_server.py` both running (from Task 8's Step 4) and no `sync.peers` configured yet, open `http://localhost:8765/dashboard-agents.html`, register a session (`Edgar`, any name), and confirm the card shows no machine chip (default, unconfigured state — must look identical to before this task).
+
+Then simulate a second machine using the same loopback trick as Task 8's Step 10 — point this instance's own `sync.peers` at its own `sync_server.py`, so the aggregated endpoint pulls the same registry twice under two different labels. This proves the merge/tagging mechanism end to end, even though both "peers" are really the same data:
+```bash
+python3 -c "
+import json
+from pathlib import Path
+path = Path('dashboard-config.json')
+config = json.loads(path.read_text()) if path.exists() else {}
+config['sync'] = config.get('sync', {})
+config['sync']['instance_name'] = 'main'
+config['sync']['peers'] = [{'name': 'loopback-test', 'url': 'http://localhost:8766', 'token': 'dev-secret'}]
+path.write_text(json.dumps(config, indent=2))
+"
+kill %2  # restart server.py so it re-reads dashboard-config.json (PEERS/INSTANCE_NAME resolve at import)
+.venv/bin/python server.py &
+sleep 1
+curl -s http://localhost:8765/api/sessions/aggregated | python3 -m json.tool
+```
+Expected: the JSON shows the same session(s) twice — once tagged `"machine": "main"`, once `"machine": "loopback-test"` — and `"unreachable": []`. Reload `dashboard-agents.html`: each active session now renders as two cards, one per machine chip.
+
+Restore the real config afterward the same way Task 8's Step 13 does (restore from the `.bak`, or strip the `sync.peers`/`instance_name` keys back out, then restart `server.py`).
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add sync_client.py server.py tests/test_sync_client.py tests/test_server_sessions_aggregated.py dashboard-agents.html
+git commit -m "feat: aggregate sessions across configured peers, tagged by machine"
+```
+
+---
+
 ## Out of scope for this plan
 
 - **Cloudflare tunnel config itself** — pointing a tunnel hostname at port 8766 is a one-time dashboard action in Cloudflare's UI (`dash.cloudflare.com`), not a repo change. The point of the two-server split is that this becomes a single "route this hostname to this port" rule instead of path-based rules the free tier can't do.
 - **Sessions/reports writes over sync** — explicitly read-only; they're written by agents executing locally, and there's no remote-management use case for them the way there is for checklist tasks.
 - **Per-instance tokens** — the issue's own open question resolves to "one shared secret for all," which `DASHBOARD_SYNC_TOKEN` implements.
 - **Rate limiting** — logging auth failures (`app.logger.warning`) is the chosen minimum bar; adding a dependency like Flask-Limiter isn't justified for a single-user tool talking to a small, known set of instances.
-- **An aggregating "combined view" dashboard UI** — this plan builds the sync API each instance exposes (Tasks 1–6) and the checklist proxy that makes hub/spoke actually usable (Task 7). A page that renders every instance's sessions/reports side by side is a separate frontend deliverable that consumes these APIs; it isn't built here.
-- **Multi-hop sync chains** — `sync.upstream` points one instance at exactly one main. A slave being itself the upstream for a third instance (chained hub/spoke) is unsupported and untested.
+- **An aggregating "combined view" for reports** — Task 9 builds the combined, machine-tagged view for *sessions* only (`GET /api/sessions/aggregated`, wired into `dashboard-agents.html`), since that's the concrete ask. A page that also renders every instance's *reports* side by side isn't built here — it would follow the same shape (peers list + per-peer fetch + tag), just not asked for yet.
+- **Aggregating `session-data.json` (Claude Code's own local session log)** — that file, rendered on `session-dashboard.html`, is a different thing from the manually-registered `sessions-registry.json` this whole sync design targets (matches the issue's own endpoint table). It's inherently local — built by `build-session-data.mjs` from that machine's own Claude Code transcripts — and isn't synced. Task 9's "Machine" tagging only applies to the manual registry entries `dashboard-agents.html` already merges in alongside it.
+- **Multi-hop sync chains** — `sync.upstream` points one instance at exactly one main. A slave being itself the upstream for a third instance (chained hub/spoke) is unsupported and untested. `sync.peers` (Task 9) has the same limitation: peers are read directly, not transitively through another peer.
